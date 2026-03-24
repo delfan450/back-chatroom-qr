@@ -24,7 +24,7 @@ public class UsuarioController {
     public ResponseEntity<Map<String, Object>> registrar(
             @RequestParam String nombre,
             @RequestParam String apellidos,
-            @RequestParam Integer edad, // CAMBIO: Recibimos String "YYYY-MM-DD"
+            @RequestParam String fecha_nacimiento, // CAMBIO: Recibimos String "YYYY-MM-DD"
             @RequestParam String email,
             @RequestParam String telefono,
             @RequestParam String password,
@@ -43,9 +43,7 @@ public class UsuarioController {
             nuevo.setNombre(nombre);
             nuevo.setApellidos(apellidos);
 
-            // CAMBIO: Guardamos la fecha real enviada desde el DatePicker de Android
-           // nuevo.setFechaNacimiento(LocalDate.parse(fecha_nacimiento));
-            nuevo.setEdad(edad);
+            nuevo.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
 
             nuevo.setEmail(email);
             nuevo.setTelefono(telefono);
@@ -110,7 +108,7 @@ public class UsuarioController {
             @PathVariable Integer id,
             @RequestParam String nombre,
             @RequestParam String apellidos,
-            @RequestParam Integer edad,
+            @RequestParam String fecha_nacimiento,
             @RequestParam String email,
             @RequestParam String telefono,
             @RequestParam(required = false) String password, // Ahora es opcional
@@ -121,8 +119,8 @@ public class UsuarioController {
         return usuarioRepository.findById(id).map(user -> {
             user.setNombre(nombre);
             user.setApellidos(apellidos);
-           // user.setFechaNacimiento(LocalDate.parse(fecha_nacimiento));
-            user.setEdad(edad);
+
+            user.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
             user.setEmail(email);
             user.setTelefono(telefono);
             user.setFoto(foto);

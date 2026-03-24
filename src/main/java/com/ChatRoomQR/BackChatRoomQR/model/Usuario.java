@@ -17,9 +17,8 @@ public class Usuario {
     private String nombre;
     private String apellidos;
 
-    // ESTO ES LO QUE FALTA:
-    //@Column(name = "fecha_nacimiento") // El nombre real en la tabla SQL
-    private Integer edad;                 // El nombre que usa tu código Java y Android
+    @Column(name = "fecha_nacimiento")
+    private java.time.LocalDate fechaNacimiento;
 
     private String telefono;
 
