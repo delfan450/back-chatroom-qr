@@ -16,7 +16,8 @@ public class Usuario {
 
     private String nombre;
     private String apellidos;
-    private LocalDate fecha_nacimiento; // Usaremos esto en lugar de edad
+    //private LocalDate fecha_nacimiento; // Usaremos esto en lugar de edad
+    private int edad;
     private String telefono;
 
     @Column(columnDefinition = "TEXT")
