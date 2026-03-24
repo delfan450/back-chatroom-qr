@@ -27,18 +27,10 @@ public class UsuarioController {
             @RequestParam String fecha_nacimiento, // CAMBIO: Recibimos String "YYYY-MM-DD"
             @RequestParam String email,
             @RequestParam String telefono,
-            @RequestParam boolean acepta_terminos,
             @RequestParam String password,
             @RequestParam(required = false) String foto) {
 
-
-
         Map<String, Object> response = new HashMap<>();
-        if (!acepta_terminos) {
-            response.put("status", "error");
-            response.put("message", "Debes aceptar los términos y condiciones para continuar.");
-            return ResponseEntity.badRequest().body(response);
-        }
         // 1. Validar Email (que tenga @ y .)
         if (!email.contains("@") || !email.contains(".")) {
             response.put("message", "El formato del email no es válido");
@@ -160,15 +152,5 @@ public class UsuarioController {
             response.put("status", "success");
             return ResponseEntity.ok(response);
         }).orElse(ResponseEntity.notFound().build());
-    }
-
-    @GetMapping("/terminos-legales")
-    public ResponseEntity<Map<String, String>> getTerminos() {
-        Map<String, String> terminos = new HashMap<>();
-        terminos.put("titulo", "Términos y Condiciones de ChatRoom QR");
-        terminos.put("contenido", "Al usar esta app, aceptas que tus mensajes sean visibles " +
-                "para los usuarios que entren a la sala después de ti. " +
-                "Tus datos están protegidos por la ley de protección de datos...");
-        return ResponseEntity.ok(terminos);
     }
 }
