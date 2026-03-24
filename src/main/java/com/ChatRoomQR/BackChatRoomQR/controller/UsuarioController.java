@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -18,12 +19,12 @@ public class UsuarioController {
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    // 1. REGISTRO DE USUARIO (Revertido a 'int edad')
+    // 1. REGISTRO DE USUARIO
     @PostMapping("/registrar")
     public ResponseEntity<Map<String, Object>> registrar(
             @RequestParam String nombre,
             @RequestParam String apellidos,
-            @RequestParam int edad, // VOLVEMOS A INT (Como lo envía tu Android)
+            @RequestParam String fecha_nacimiento, // CAMBIO: Recibimos String "YYYY-MM-DD"
             @RequestParam String email,
             @RequestParam String telefono,
             @RequestParam String password,
@@ -42,14 +43,14 @@ public class UsuarioController {
             nuevo.setNombre(nombre);
             nuevo.setApellidos(apellidos);
 
-            // VOLVEMOS A SETEDAD (Asegúrate que en tu modelo Usuario.java sea 'int edad')
-            nuevo.setEdad(edad);
+            // CAMBIO: Guardamos la fecha real enviada desde el DatePicker de Android
+            nuevo.setFechaNacimiento(LocalDate.parse(fecha_nacimiento));
 
             nuevo.setEmail(email);
             nuevo.setTelefono(telefono);
             nuevo.setFoto(foto);
 
-            // ENCRIPTACIÓN
+            // ENCRIPTACIÓN: BCrypt profesional
             String hashedPassword = BCrypt.hashpw(password, BCrypt.gensalt());
             nuevo.setPassword(hashedPassword);
 
@@ -66,7 +67,7 @@ public class UsuarioController {
         }
     }
 
-    // 2. LOGIN (Se queda igual)
+    // 2. LOGIN DE USUARIO (Se queda igual, ya es perfecto)
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(
             @RequestParam String email,
@@ -103,30 +104,32 @@ public class UsuarioController {
     }
 
     // 4. ACTUALIZAR PERFIL (Corregido el nombre de la variable Path y el setEdad)
-    @PostMapping("/actualizar/{id_usuario}")
+    @PostMapping("/actualizar/{id}")
     public ResponseEntity<Map<String, Object>> actualizar(
-            @PathVariable("id_usuario") int id_usuario, // Nombre coincidente con la ruta
+            @PathVariable Integer id,
             @RequestParam String nombre,
             @RequestParam String apellidos,
-            @RequestParam int edad,
+            @RequestParam String fecha_nacimiento,
             @RequestParam String email,
             @RequestParam String telefono,
-            @RequestParam(required = false) String password,
+            @RequestParam(required = false) String password, // Ahora es opcional
             @RequestParam(required = false) String foto) {
 
         Map<String, Object> response = new HashMap<>();
 
-        return usuarioRepository.findById(id_usuario).map(user -> {
+        return usuarioRepository.findById(id).map(user -> {
             user.setNombre(nombre);
             user.setApellidos(apellidos);
-            user.setEdad(edad); // Volvemos a usar edad
+            user.setFechaNacimiento(LocalDate.parse(fecha_nacimiento));
             user.setEmail(email);
             user.setTelefono(telefono);
             user.setFoto(foto);
 
+            // SOLO encriptamos y guardamos si el usuario escribió algo en el campo password
             if (password != null && !password.trim().isEmpty()) {
                 user.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
             }
+            // Si viene vacío, no tocamos user.setPassword(), así mantiene la anterior.
 
             usuarioRepository.save(user);
             response.put("status", "success");
