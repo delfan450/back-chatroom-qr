@@ -1,7 +1,10 @@
 package com.ChatRoomQR.BackChatRoomQR.controller;
 
+import com.ChatRoomQR.BackChatRoomQR.model.AccesoSala;
+import com.ChatRoomQR.BackChatRoomQR.model.AccesoSalaId;
 import com.ChatRoomQR.BackChatRoomQR.model.MensajeGrupal;
 import com.ChatRoomQR.BackChatRoomQR.model.Sala;
+import com.ChatRoomQR.BackChatRoomQR.repository.AccesoSalaRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.MensajeRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.SalaRepository; // Nuevo
 import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioRepository;
@@ -18,6 +21,9 @@ public class ChatController {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
+
+    @Autowired
+    private AccesoSalaRepository accesoSalaRepository;
 
     @Autowired
     private MensajeRepository mensajeRepository;
@@ -44,15 +50,28 @@ public class ChatController {
 
     // --- 2. OBTENER MENSAJES ---
     @GetMapping("/mensajes/{id_sala}")
-    public ResponseEntity<?> getMensajesGrupal(@PathVariable String id_sala) {
-        // Validamos si la sala existe antes de buscar mensajes
-        if (!salaRepository.existsById(id_sala)) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "No se pueden cargar mensajes de una sala inexistente");
-            return ResponseEntity.status(404).body(error);
+    public ResponseEntity<?> getMensajesGrupal(
+            @PathVariable String id_sala,
+            @RequestParam int id_usuario) { // Ahora pedimos el ID del usuario que consulta
+
+        // 1. Buscamos cuándo entró este usuario a esta sala
+        Optional<AccesoSala> acceso = accesoSalaRepository.findById(new AccesoSalaId(id_usuario, id_sala));
+
+        if (acceso.isEmpty()) {
+            // Si no hay registro de entrada, devolvemos lista vacía (Privacidad total)
+            return ResponseEntity.ok(new ArrayList<>());
         }
 
-        List<MensajeGrupal> mensajes = mensajeRepository.obtenerMensajesPorSala(id_sala);
+        LocalDateTime fechaFiltro = acceso.get().getFecha_entrada();
+
+        // 2. Buscamos mensajes filtrando por fecha
+        List<MensajeGrupal> mensajes = mensajeRepository.obtenerMensajesDesdeFecha(id_sala, fechaFiltro);
+
+        // 3. Tu bucle de nombres (el que ya tenías)
+        for (MensajeGrupal m : mensajes) {
+            usuarioRepository.findById(m.getId_usuario()).ifPresent(u -> m.setNombre(u.getNombre()));
+        }
+
         return ResponseEntity.ok(mensajes);
     }
 
@@ -111,6 +130,33 @@ public class ChatController {
 
         response.put("status", salaValida ? "success" : "error");
         response.put("expirado", !salaValida);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/entrar-sala")
+    public ResponseEntity<Map<String, Object>> registrarEntrada(
+            @RequestParam int id_usuario,
+            @RequestParam String id_sala) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        // 1. Validar que la sala existe
+        if (!salaRepository.existsById(id_sala)) {
+            response.put("status", "error");
+            response.put("message", "Este código QR no pertenece a ninguna sala válida");
+            return ResponseEntity.status(404).body(response);
+        }
+
+        // 2. Guardar o actualizar la fecha de entrada
+        AccesoSala acceso = new AccesoSala();
+        acceso.setId_usuario(id_usuario);
+        acceso.setId_sala(id_sala);
+        acceso.setFecha_entrada(java.time.LocalDateTime.now());
+
+        accesoSalaRepository.save(acceso);
+
+        response.put("status", "success");
+        response.put("message", "Has entrado a la sala: " + id_sala);
         return ResponseEntity.ok(response);
     }
 }
