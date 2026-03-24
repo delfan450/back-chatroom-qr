@@ -8,7 +8,7 @@ import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "usuarios")
-@Data // Esto de Lombok crea los Getters y Setters automáticamente
+@Data
 public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -17,13 +17,14 @@ public class Usuario {
     private String nombre;
     private String apellidos;
 
-    @Column(name = "fecha_nacimiento")
-    private LocalDate fechaNacimiento;
-    //private int edad;
+    // ESTO ES LO QUE FALTA:
+    //@Column(name = "fecha_nacimiento") // El nombre real en la tabla SQL
+    private Integer edad;                 // El nombre que usa tu código Java y Android
+
     private String telefono;
 
     @Column(columnDefinition = "TEXT")
-    private String foto; // Aquí guardaremos el Base64 que envías desde Android
+    private String foto;
 
     @Column(unique = true)
     private String email;
