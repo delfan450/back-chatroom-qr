@@ -9,6 +9,6 @@ import java.util.Optional;
 public interface RolUsuarioRepository extends JpaRepository<RolUsuario, Integer> {
     Optional<RolUsuario> findByIdUsuario(Integer idUsuario);
 
-    @Query(value = "SELECT ro.nombre FROM roles_usuarios ru JOIN roles ro ON ro.id = ru.id_rol WHERE ru.id_usuario = :idUsuario", nativeQuery = true)
+    @Query(value = "SELECT ro.nombre FROM roles_usuarios ru JOIN roles ro ON ro.id_rol = ru.id_rol WHERE ru.id_usuario = :idUsuario", nativeQuery = true)
     Optional<String> findRolNameByIdUsuario(@Param("idUsuario") Integer idUsuario);
 }
