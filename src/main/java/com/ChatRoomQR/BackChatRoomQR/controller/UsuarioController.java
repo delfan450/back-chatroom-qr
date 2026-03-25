@@ -98,8 +98,13 @@ public class UsuarioController {
         if (userOpt.isPresent()) {
             Usuario user = userOpt.get();
             if (BCrypt.checkpw(password, user.getPassword())) {
-                String rolNombre = rolUsuarioRepository.findRolNameByIdUsuario(user.getId_usuario())
-                        .orElse("usuario").toLowerCase();
+                // Obtener rol de forma segura — nunca falla el login si el rol da error
+                String rolNombre = "usuario";
+                try {
+                    rolNombre = rolUsuarioRepository.findRolNameByIdUsuario(user.getId_usuario())
+                            .orElse("usuario").toLowerCase();
+                } catch (Exception ignored) {}
+
                 response.put("status", "success");
                 response.put("id_usuario", user.getId_usuario());
                 response.put("nombre", user.getNombre());
