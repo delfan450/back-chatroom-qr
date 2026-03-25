@@ -1,8 +1,7 @@
 package com.ChatRoomQR.BackChatRoomQR.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import jakarta.persistence.*;
 import lombok.Data;
 
 @Entity
@@ -10,7 +9,15 @@ import lombok.Data;
 @Data
 public class Sala {
     @Id
-    private String id_sala; // El código del QR (ej: "GENERAL")
+    private String id_sala;
+
+    @JsonProperty("nombre")
     private String nombre_sala;
+
     private String descripcion;
+    private Double latitud;
+    private Double longitud;
+    private Double radio_metros;
+    private Integer tiempo_maximo;
+    private Integer tiempo_pendiente;
 }

@@ -1,9 +1,11 @@
 package com.ChatRoomQR.BackChatRoomQR.controller;
 
 import com.ChatRoomQR.BackChatRoomQR.model.MensajeGrupal;
+import com.ChatRoomQR.BackChatRoomQR.model.UsuarioSala;
 import com.ChatRoomQR.BackChatRoomQR.repository.MensajeRepository;
-import com.ChatRoomQR.BackChatRoomQR.repository.SalaRepository; // Nuevo
+import com.ChatRoomQR.BackChatRoomQR.repository.SalaRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioRepository;
+import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioSalaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,7 +24,10 @@ public class ChatController {
     private MensajeRepository mensajeRepository;
 
     @Autowired
-    private SalaRepository salaRepository; // <--- Inyectamos para validar locales reales
+    private SalaRepository salaRepository;
+
+    @Autowired
+    private UsuarioSalaRepository usuarioSalaRepository;
 
     // --- 1. INFO DE LA SALA (Para cuando escanean el QR) ---
     @GetMapping("/sala/{id_sala}")
@@ -44,7 +49,6 @@ public class ChatController {
     // --- 2. OBTENER MENSAJES ---
     @GetMapping("/mensajes/{id_sala}")
     public ResponseEntity<?> getMensajesGrupal(@PathVariable String id_sala) {
-        // Validamos si la sala existe antes de buscar mensajes
         if (!salaRepository.existsById(id_sala)) {
             Map<String, String> error = new HashMap<>();
             error.put("message", "No se pueden cargar mensajes de una sala inexistente");
@@ -55,7 +59,7 @@ public class ChatController {
 
         for (MensajeGrupal m : mensajes) {
             usuarioRepository.findById(m.getId_usuario()).ifPresent(u -> {
-                m.setNombre(u.getNombre()); // Ahora Android sabrá quién escribió
+                m.setNombre(u.getNombre());
             });
         }
         return ResponseEntity.ok(mensajes);
@@ -71,7 +75,6 @@ public class ChatController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // VALIDACIÓN CRÍTICA: ¿Existe el local y el usuario?
             if (!salaRepository.existsById(id_sala)) {
                 response.put("status", "error");
                 response.put("message", "ID de sala no válido");
@@ -102,7 +105,7 @@ public class ChatController {
         }
     }
 
-    // --- 4. VERIFICAR SESIÓN (Lógica dinámica) ---
+    // --- 4. VERIFICAR SESIÓN ---
     @GetMapping("/verificar-sesion")
     public ResponseEntity<Map<String, Object>> verificarSesionSala(
             @RequestParam int id_usuario,
@@ -110,8 +113,6 @@ public class ChatController {
 
         Map<String, Object> response = new HashMap<>();
 
-        // Aquí podrías añadir lógica de tiempo real.
-        // Por ahora, validamos al menos que la sala exista.
         boolean salaValida = salaRepository.existsById(id_sala);
 
         response.put("status", salaValida ? "success" : "error");
@@ -119,5 +120,34 @@ public class ChatController {
         return ResponseEntity.ok(response);
     }
 
+    // --- 5. UNIRSE A SALA ---
+    @PostMapping("/unirse")
+    public ResponseEntity<Map<String, Object>> unirseASala(
+            @RequestParam int id_usuario,
+            @RequestParam String id_sala) {
 
+        Map<String, Object> response = new HashMap<>();
+
+        if (!salaRepository.existsById(id_sala)) {
+            response.put("status", "error");
+            response.put("message", "La sala no existe");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        Optional<UsuarioSala> existente = usuarioSalaRepository.findByIdUsuarioAndIdSala(id_usuario, id_sala);
+        if (existente.isEmpty()) {
+            UsuarioSala us = new UsuarioSala();
+            us.setIdUsuario(id_usuario);
+            us.setIdSala(id_sala);
+            us.setEstado("activo");
+            us.setFechaUnion(LocalDateTime.now());
+            usuarioSalaRepository.save(us);
+        } else {
+            existente.get().setEstado("activo");
+            usuarioSalaRepository.save(existente.get());
+        }
+
+        response.put("status", "success");
+        return ResponseEntity.ok(response);
+    }
 }
