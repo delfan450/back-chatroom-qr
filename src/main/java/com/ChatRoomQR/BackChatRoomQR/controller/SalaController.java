@@ -25,6 +25,9 @@ public class SalaController {
         List<Map<String, Object>> resultado = new ArrayList<>();
 
         for (UsuarioSala us : uniones) {
+            // Excluir salas de las que fue expulsado
+            if ("inactivo".equals(us.getEstado())) continue;
+
             salaRepository.findById(us.getIdSala()).ifPresent(sala -> {
                 Map<String, Object> item = new HashMap<>();
                 item.put("id_sala", sala.getId_sala());
@@ -33,7 +36,7 @@ public class SalaController {
                 item.put("longitud", sala.getLongitud() != null ? sala.getLongitud() : 0.0);
                 item.put("radio_metros", sala.getRadio_metros() != null ? sala.getRadio_metros() : 0.0);
                 item.put("tiempo_maximo", sala.getTiempo_maximo() != null ? sala.getTiempo_maximo() : 120);
-                item.put("estado", us.getEstado() != null ? us.getEstado() : "activo");
+                item.put("estado", us.getEstado());
                 resultado.add(item);
             });
         }

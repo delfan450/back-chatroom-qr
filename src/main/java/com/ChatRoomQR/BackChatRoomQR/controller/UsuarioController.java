@@ -67,11 +67,11 @@ public class UsuarioController {
             nuevo.setFoto(foto);
             nuevo.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
 
-            usuarioRepository.save(nuevo);
+            Usuario saved = usuarioRepository.save(nuevo);
 
             // Asignar rol Usuario (id_rol=3) por defecto
             RolUsuario rolUsuario = new RolUsuario();
-            rolUsuario.setIdUsuario(nuevo.getId_usuario());
+            rolUsuario.setIdUsuario(saved.getId_usuario());
             rolUsuario.setIdRol(3);
             rolUsuarioRepository.save(rolUsuario);
 
