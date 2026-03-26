@@ -9,7 +9,7 @@ import java.util.Map;
 
 @Service
 public class GoogleOAuthService {
-    @Value("${google.oauth.client-id}")
+    @Value("${google.oauth.client-id:}")
     private String googleClientId;
 
     public Map<String, String> validateTokenAndGetInfo(String idToken) {
