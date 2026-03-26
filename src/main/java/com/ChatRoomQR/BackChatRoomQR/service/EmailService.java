@@ -17,6 +17,7 @@ public class EmailService {
     private String fromEmail;
 
     private void enviarEmail(String destinatario, String asunto, String cuerpo) {
+        System.out.println("[EmailService] Enviando email a: " + destinatario + " | Asunto: " + asunto);
         try {
             Email from = new Email(fromEmail);
             Email to = new Email(destinatario);
@@ -28,9 +29,20 @@ public class EmailService {
             request.setMethod(Method.POST);
             request.setEndpoint("mail/send");
             request.setBody(mail.build());
-            sg.api(request);
+
+            Response response = sg.api(request);
+
+            System.out.println("[EmailService] SendGrid status: " + response.getStatusCode());
+            System.out.println("[EmailService] SendGrid body: " + response.getBody());
+
+            if (response.getStatusCode() == 202) {
+                System.out.println("[EmailService] Email enviado correctamente a: " + destinatario);
+            } else {
+                System.err.println("[EmailService] Error. Status: " + response.getStatusCode() + " | Body: " + response.getBody());
+            }
         } catch (Exception e) {
-            System.err.println("Error enviando email: " + e.getMessage());
+            System.err.println("[EmailService] Excepcion: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
