@@ -55,7 +55,7 @@ public class UsuarioController {
         try {
             // Si el usuario ya existe y está verificado, retornar error
             Optional<Usuario> usuarioExistente = usuarioRepository.findByEmail(email);
-            if (usuarioExistente.isPresent() && usuarioExistente.get().getIsVerified()) {
+            if (usuarioExistente.isPresent() && Boolean.TRUE.equals(usuarioExistente.get().getIsVerified())) {
                 response.put("status", "error");
                 response.put("message", "El email ya está registrado");
                 return ResponseEntity.badRequest().body(response);
@@ -101,7 +101,7 @@ public class UsuarioController {
             Usuario user = userOpt.get();
 
             // Verificar que el usuario está verificado
-            if (!user.getIsVerified()) {
+            if (!Boolean.TRUE.equals(user.getIsVerified())) {
                 response.put("status", "error");
                 response.put("message", "El email aún no ha sido verificado. Por favor, revisa tu bandeja de entrada.");
                 return ResponseEntity.status(403).body(response);
@@ -428,7 +428,7 @@ public class UsuarioController {
             }
 
             Usuario usuario = usuarioOpt.get();
-            if (usuario.getIsVerified()) {
+            if (Boolean.TRUE.equals(usuario.getIsVerified())) {
                 response.put("status", "error");
                 response.put("message", "Este email ya está verificado");
                 return ResponseEntity.badRequest().body(response);
