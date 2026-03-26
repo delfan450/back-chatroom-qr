@@ -30,6 +30,18 @@ public class Usuario {
 
     private String password;
 
+    @Column(name = "verification_code")
+    private String verificationCode;
+
+    @Column(name = "is_verified")
+    private Boolean isVerified = false;
+
+    @Column(name = "google_id")
+    private String googleId;
+
+    @Column(name = "code_expires_at")
+    private LocalDateTime codeExpiresAt;
+
     private LocalDateTime fecha_registro = LocalDateTime.now();
     private Boolean acepta_terminos = true;
 }

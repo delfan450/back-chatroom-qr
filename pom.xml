@@ -66,6 +66,19 @@
 			<version>0.4</version>
 		</dependency>
 
+	<!-- Email support -->
+	<dependency>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-mail</artifactId>
+	</dependency>
+
+	<!-- Google OAuth validation -->
+	<dependency>
+		<groupId>com.google.auth</groupId>
+		<artifactId>google-auth-library-oauth2-http</artifactId>
+		<version>1.11.0</version>
+	</dependency>
+
 	</dependencies>
 
 	<build>
