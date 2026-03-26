@@ -79,11 +79,11 @@
 		<version>1.11.0</version>
 	</dependency>
 
-	<!-- Resend Email Service -->
+	<!-- SendGrid Email Service -->
 	<dependency>
-		<groupId>com.resend</groupId>
-		<artifactId>resend-java</artifactId>
-		<version>3.1.0</version>
+		<groupId>com.sendgrid</groupId>
+		<artifactId>sendgrid-java</artifactId>
+		<version>4.10.2</version>
 	</dependency>
 
 	</dependencies>
