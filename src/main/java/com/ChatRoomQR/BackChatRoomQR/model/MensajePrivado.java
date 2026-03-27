@@ -14,15 +14,15 @@ public class MensajePrivado {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id_mensaje;
-
-    @Column(name = "id_chat_privado")
-    private Integer idChatPrivado;
+    private Integer id;
 
     // Android espera "id_usuario" para que MensajeAdapter distinga burbujas
     @JsonProperty("id_usuario")
-    @Column(name = "id_usuario_emisor")
-    private Integer idUsuarioEmisor;
+    @Column(name = "id_emisor")
+    private Integer idEmisor;
+
+    @Column(name = "id_receptor")
+    private Integer idReceptor;
 
     private String mensaje;
 
