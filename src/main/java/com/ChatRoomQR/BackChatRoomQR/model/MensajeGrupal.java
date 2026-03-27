@@ -21,4 +21,8 @@ public class MensajeGrupal {
     // Campo transaccional para el nombre del emisor (no está en la tabla, pero Android lo necesita)
     @Transient
     private String nombre;
+
+    // Campo transaccional para el nombre de usuario del emisor
+    @Transient
+    private String nombre_usuario;
 }

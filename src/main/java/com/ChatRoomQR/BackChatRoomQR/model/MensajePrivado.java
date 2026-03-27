@@ -34,4 +34,8 @@ public class MensajePrivado {
     // Android espera "nombre"
     @Transient
     private String nombre;
+
+    // Nombre de usuario del emisor
+    @Transient
+    private String nombre_usuario;
 }

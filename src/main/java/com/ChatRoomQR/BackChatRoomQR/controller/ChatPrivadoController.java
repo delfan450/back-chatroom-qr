@@ -53,7 +53,10 @@ public class ChatPrivadoController {
 
         for (MensajePrivado m : mensajes) {
             usuarioRepository.findById(m.getIdEmisor())
-                    .ifPresent(u -> m.setNombre(u.getNombre()));
+                    .ifPresent(u -> {
+                        m.setNombre(u.getNombre());
+                        m.setNombre_usuario(u.getNombre_usuario());
+                    });
         }
 
         return ResponseEntity.ok(mensajes);
