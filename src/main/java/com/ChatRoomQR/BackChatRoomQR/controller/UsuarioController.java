@@ -32,16 +32,10 @@ public class UsuarioController {
     @Autowired
     private GoogleOAuthService googleOAuthService;
 
-    // 1. REGISTRO DE USUARIO
-    @PostMapping("/registrar")
-    public ResponseEntity<Map<String, Object>> registrar(
-            @RequestParam String nombre,
-            @RequestParam String apellidos,
-            @RequestParam String fecha_nacimiento,
-            @RequestParam String email,
-            @RequestParam String telefono,
-            @RequestParam String password,
-            @RequestParam(required = false) String foto) {
+    // 1. INICIAR REGISTRO (Step 1: Enviar código de verificación)
+    @PostMapping("/iniciar-registro")
+    public ResponseEntity<Map<String, Object>> iniciarRegistro(
+            @RequestParam String email) {
 
         Map<String, Object> response = new HashMap<>();
 
@@ -58,22 +52,89 @@ public class UsuarioController {
         }
 
         try {
+            // Generar código de 6 dígitos
+            String codigo = String.format("%06d", (int)(Math.random() * 1000000));
+
+            // Crear usuario temporal sin verificar
             Usuario nuevo = new Usuario();
-            nuevo.setNombre(nombre);
-            nuevo.setApellidos(apellidos);
-            nuevo.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
             nuevo.setEmail(email);
-            nuevo.setTelefono(telefono);
-            nuevo.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
-            nuevo.setFoto(foto);
-            nuevo.setIsVerified(true);
+            nuevo.setIsVerified(false);
+            nuevo.setVerificationCode(codigo);
+            nuevo.setCodeExpiresAt(LocalDateTime.now().plusMinutes(10));
+            usuarioRepository.save(nuevo);
 
-            Usuario saved = usuarioRepository.save(nuevo);
+            // Enviar código por email
+            emailService.enviarCodigoVerificacion(email, codigo);
 
-            RolUsuario rolUsuario = new RolUsuario();
-            rolUsuario.setIdUsuario(saved.getId_usuario());
-            rolUsuario.setIdRol(3);
-            rolUsuarioRepository.save(rolUsuario);
+            response.put("status", "success");
+            response.put("message", "Código de verificación enviado al email");
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            response.put("status", "error");
+            response.put("message", "Error en el servidor: " + e.getMessage());
+            return ResponseEntity.internalServerError().body(response);
+        }
+    }
+
+    // 2. VERIFICAR CÓDIGO Y COMPLETAR REGISTRO (Step 2: Completar datos después de verificar código)
+    @PostMapping("/verificar-codigo")
+    public ResponseEntity<Map<String, Object>> verificarCodigo(
+            @RequestParam String email,
+            @RequestParam String code,
+            @RequestParam String nombre,
+            @RequestParam String apellidos,
+            @RequestParam String fecha_nacimiento,
+            @RequestParam String telefono,
+            @RequestParam String password,
+            @RequestParam(required = false) String foto) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        Optional<Usuario> userOpt = usuarioRepository.findByEmail(email);
+        if (userOpt.isEmpty()) {
+            response.put("status", "error");
+            response.put("message", "Email no encontrado");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        Usuario usuario = userOpt.get();
+
+        // Verificar código
+        if (usuario.getVerificationCode() == null || !usuario.getVerificationCode().equals(code)) {
+            response.put("status", "error");
+            response.put("message", "Código de verificación inválido");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        // Verificar si el código ha expirado
+        if (usuario.getCodeExpiresAt() != null && LocalDateTime.now().isAfter(usuario.getCodeExpiresAt())) {
+            response.put("status", "error");
+            response.put("message", "El código de verificación ha expirado");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        try {
+            // Completar datos del usuario
+            usuario.setNombre(nombre);
+            usuario.setApellidos(apellidos);
+            usuario.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
+            usuario.setTelefono(telefono);
+            usuario.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
+            usuario.setFoto(foto);
+            usuario.setIsVerified(true);
+            usuario.setVerificationCode(null);
+            usuario.setCodeExpiresAt(null);
+
+            Usuario saved = usuarioRepository.save(usuario);
+
+            // Asignar rol Usuario (id_rol=3) si no existe
+            if (rolUsuarioRepository.findByIdUsuario(saved.getId_usuario()).isEmpty()) {
+                RolUsuario rolUsuario = new RolUsuario();
+                rolUsuario.setIdUsuario(saved.getId_usuario());
+                rolUsuario.setIdRol(3);
+                rolUsuarioRepository.save(rolUsuario);
+            }
 
             response.put("status", "success");
             response.put("message", "Usuario registrado correctamente");
