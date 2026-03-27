@@ -254,16 +254,23 @@ public class UsuarioController {
     @GetMapping("/sugerir-nombre-usuario")
     public ResponseEntity<Map<String, Object>> sugerirNombreUsuario(@RequestParam String base) {
         Map<String, Object> r = new HashMap<>();
-        List<String> sugerencias = new ArrayList<>();
 
-        for (int i = 1; i <= 5; i++) {
-            String sugerencia = base + "_" + i;
-            if (usuarioRepository.findByNombreUsuario(sugerencia).isEmpty()) {
-                sugerencias.add(sugerencia);
+        boolean disponible = usuarioRepository.findByNombreUsuario(base).isEmpty();
+        r.put("disponible", disponible);
+
+        if (!disponible) {
+            List<String> sugerencias = new ArrayList<>();
+            for (int i = 1; i <= 5; i++) {
+                String sugerencia = base + "_" + i;
+                if (usuarioRepository.findByNombreUsuario(sugerencia).isEmpty()) {
+                    sugerencias.add(sugerencia);
+                }
             }
+            r.put("sugerencias", sugerencias);
+        } else {
+            r.put("sugerencias", new ArrayList<>());
         }
 
-        r.put("sugerencias", sugerencias);
         return ResponseEntity.ok(r);
     }
 
