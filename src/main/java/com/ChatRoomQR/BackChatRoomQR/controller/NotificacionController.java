@@ -8,6 +8,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -23,19 +24,40 @@ public class NotificacionController {
     private UsuarioRepository usuarioRepository;
 
     @GetMapping("/obtener")
-    public ResponseEntity<List<Notificacion>> obtenerNotificaciones(
+    public ResponseEntity<List<Map<String, Object>>> obtenerNotificaciones(
             @RequestParam int id_usuario) {
 
         List<Notificacion> notificaciones = notificacionRepository.findByIdUsuarioReceptor(id_usuario);
-        return ResponseEntity.ok(notificaciones);
+        return ResponseEntity.ok(enriquecer(notificaciones));
     }
 
     @GetMapping("/no-leidas")
-    public ResponseEntity<List<Notificacion>> obtenerNotificacionesNoLeidas(
+    public ResponseEntity<List<Map<String, Object>>> obtenerNotificacionesNoLeidas(
             @RequestParam int id_usuario) {
 
         List<Notificacion> notificaciones = notificacionRepository.findNotLeidas(id_usuario);
-        return ResponseEntity.ok(notificaciones);
+        return ResponseEntity.ok(enriquecer(notificaciones));
+    }
+
+    private List<Map<String, Object>> enriquecer(List<Notificacion> lista) {
+        List<Map<String, Object>> resultado = new ArrayList<>();
+        for (Notificacion n : lista) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("id_notificacion", n.getId_notificacion());
+            m.put("id_usuario_remitente", n.getIdUsuarioRemitente());
+            m.put("tipo_notificacion", n.getTipoNotificacion());
+            m.put("contenido", n.getContenido());
+            m.put("fecha_creacion", n.getFechaCreacion());
+            m.put("leida", n.getLeida());
+
+            usuarioRepository.findById(n.getIdUsuarioRemitente()).ifPresent(u -> {
+                String nombre = u.getNombreUsuario() != null ? u.getNombreUsuario() : u.getNombre();
+                m.put("nombre_remitente", nombre);
+            });
+
+            resultado.add(m);
+        }
+        return resultado;
     }
 
     @PostMapping("/crear")
