@@ -1,6 +1,8 @@
 package com.ChatRoomQR.BackChatRoomQR.controller;
 
+import com.ChatRoomQR.BackChatRoomQR.model.ChatPrivado;
 import com.ChatRoomQR.BackChatRoomQR.model.MensajePrivado;
+import com.ChatRoomQR.BackChatRoomQR.repository.ChatPrivadoRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.MensajePrivadoRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,79 +17,74 @@ import java.util.*;
 public class ChatPrivadoController {
 
     @Autowired
+    private ChatPrivadoRepository chatPrivadoRepository;
+
+    @Autowired
     private MensajePrivadoRepository mensajePrivadoRepository;
 
     @Autowired
     private UsuarioRepository usuarioRepository;
 
-    // POST /api/chat/privado/crear?id_usuario1=X&id_usuario2=Y
-    // Devuelve un id_conversacion estable derivado de los dos usuarios (sin tabla extra)
+    // POST /api/chat/privado/crear?id_usuario_1=X&id_usuario_2=Y
     @PostMapping("/crear")
-    public ResponseEntity<Map<String, Object>> crearConversacion(
-            @RequestParam int id_usuario1,
-            @RequestParam int id_usuario2) {
+    public ResponseEntity<Map<String, Object>> crearChat(
+            @RequestParam int id_usuario_1,
+            @RequestParam int id_usuario_2) {
 
         Map<String, Object> response = new HashMap<>();
 
-        if (!usuarioRepository.existsById(id_usuario1) || !usuarioRepository.existsById(id_usuario2)) {
+        if (!usuarioRepository.existsById(id_usuario_1) || !usuarioRepository.existsById(id_usuario_2)) {
             response.put("status", "error");
             response.put("message", "Uno o ambos usuarios no existen");
             return ResponseEntity.badRequest().body(response);
         }
 
-        int min = Math.min(id_usuario1, id_usuario2);
-        int max = Math.max(id_usuario1, id_usuario2);
+        ChatPrivado chat = chatPrivadoRepository
+                .findByUsuarios(id_usuario_1, id_usuario_2)
+                .orElseGet(() -> {
+                    ChatPrivado nuevo = new ChatPrivado();
+                    nuevo.setIdUsuario1(id_usuario_1);
+                    nuevo.setIdUsuario2(id_usuario_2);
+                    nuevo.setFechaCreacion(LocalDateTime.now());
+                    return chatPrivadoRepository.save(nuevo);
+                });
 
         response.put("status", "success");
-        response.put("id_conversacion", min + "_" + max);
+        response.put("id_chat_privado", chat.getId_chat_privado());
         return ResponseEntity.ok(response);
     }
 
-    // GET /api/chat/privado/mensajes?id_usuario1=X&id_usuario2=Y
+    // GET /api/chat/privado/mensajes?id_chat_privado=X
     @GetMapping("/mensajes")
-    public ResponseEntity<?> getMensajes(
-            @RequestParam int id_usuario1,
-            @RequestParam int id_usuario2) {
-
-        if (!usuarioRepository.existsById(id_usuario1) || !usuarioRepository.existsById(id_usuario2)) {
-            Map<String, String> error = new HashMap<>();
-            error.put("message", "Uno o ambos usuarios no existen");
-            return ResponseEntity.badRequest().body(error);
-        }
-
-        List<MensajePrivado> mensajes = mensajePrivadoRepository.findConversacion(id_usuario1, id_usuario2);
+    public ResponseEntity<?> getMensajes(@RequestParam int id_chat_privado) {
+        List<MensajePrivado> mensajes = mensajePrivadoRepository.findByChat(id_chat_privado);
 
         for (MensajePrivado m : mensajes) {
-            usuarioRepository.findById(m.getIdEmisor()).ifPresent(u -> m.setNombreEmisor(u.getNombre()));
+            usuarioRepository.findById(m.getIdUsuarioEmisor())
+                    .ifPresent(u -> m.setNombre(u.getNombre()));
         }
 
         return ResponseEntity.ok(mensajes);
     }
 
-    // POST /api/chat/privado/enviar
+    // POST /api/chat/privado/enviar?id_chat_privado=X&id_usuario_emisor=Y&mensaje=Z
     @PostMapping("/enviar")
     public ResponseEntity<Map<String, Object>> enviarMensaje(
-            @RequestParam int id_emisor,
-            @RequestParam int id_receptor,
+            @RequestParam int id_chat_privado,
+            @RequestParam int id_usuario_emisor,
             @RequestParam String mensaje) {
 
         Map<String, Object> response = new HashMap<>();
 
-        if (!usuarioRepository.existsById(id_emisor)) {
+        if (!chatPrivadoRepository.existsById(id_chat_privado)) {
             response.put("status", "error");
-            response.put("message", "Emisor no encontrado");
-            return ResponseEntity.badRequest().body(response);
-        }
-
-        if (!usuarioRepository.existsById(id_receptor)) {
-            response.put("status", "error");
-            response.put("message", "Receptor no encontrado");
+            response.put("message", "Chat no encontrado");
             return ResponseEntity.badRequest().body(response);
         }
 
         MensajePrivado m = new MensajePrivado();
-        m.setIdEmisor(id_emisor);
-        m.setIdReceptor(id_receptor);
+        m.setIdChatPrivado(id_chat_privado);
+        m.setIdUsuarioEmisor(id_usuario_emisor);
         m.setMensaje(mensaje);
         m.setFechaHora(LocalDateTime.now());
         mensajePrivadoRepository.save(m);
