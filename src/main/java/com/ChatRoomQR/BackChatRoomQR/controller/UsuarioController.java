@@ -12,7 +12,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -82,6 +84,7 @@ public class UsuarioController {
     public ResponseEntity<Map<String, Object>> verificarCodigo(
             @RequestParam String email,
             @RequestParam String code,
+            @RequestParam String nombre_usuario,
             @RequestParam String nombre,
             @RequestParam String apellidos,
             @RequestParam String fecha_nacimiento,
@@ -95,6 +98,13 @@ public class UsuarioController {
         if (userOpt.isEmpty()) {
             response.put("status", "error");
             response.put("message", "Email no encontrado");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        // Verificar que nombre_usuario sea único
+        if (usuarioRepository.findByNombreUsuario(nombre_usuario).isPresent()) {
+            response.put("status", "error");
+            response.put("message", "El nombre de usuario ya existe");
             return ResponseEntity.badRequest().body(response);
         }
 
@@ -116,6 +126,7 @@ public class UsuarioController {
 
         try {
             // Completar datos del usuario
+            usuario.setNombre_usuario(nombre_usuario);
             usuario.setNombre(nombre);
             usuario.setApellidos(apellidos);
             usuario.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
@@ -231,11 +242,28 @@ public class UsuarioController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // 5. CHECK EMAIL
+    // 4. CHECK EMAIL
     @GetMapping("/check-email")
     public ResponseEntity<Map<String, Object>> checkEmail(@RequestParam String email) {
         Map<String, Object> r = new HashMap<>();
         r.put("existe", usuarioRepository.findByEmail(email).isPresent());
+        return ResponseEntity.ok(r);
+    }
+
+    // 4.5 SUGERIR NOMBRES DE USUARIO
+    @GetMapping("/sugerir-nombre-usuario")
+    public ResponseEntity<Map<String, Object>> sugerirNombreUsuario(@RequestParam String base) {
+        Map<String, Object> r = new HashMap<>();
+        List<String> sugerencias = new ArrayList<>();
+
+        for (int i = 1; i <= 5; i++) {
+            String sugerencia = base + "_" + i;
+            if (usuarioRepository.findByNombreUsuario(sugerencia).isEmpty()) {
+                sugerencias.add(sugerencia);
+            }
+        }
+
+        r.put("sugerencias", sugerencias);
         return ResponseEntity.ok(r);
     }
 
