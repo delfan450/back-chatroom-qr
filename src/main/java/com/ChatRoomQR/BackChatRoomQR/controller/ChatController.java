@@ -60,7 +60,7 @@ public class ChatController {
         for (MensajeGrupal m : mensajes) {
             usuarioRepository.findById(m.getId_usuario()).ifPresent(u -> {
                 m.setNombre(u.getNombre());
-                m.setNombre_usuario(u.getNombre_usuario());
+                m.setNombre_usuario(u.getNombreUsuario());
             });
         }
         return ResponseEntity.ok(mensajes);

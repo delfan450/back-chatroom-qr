@@ -126,7 +126,7 @@ public class UsuarioController {
 
         try {
             // Completar datos del usuario
-            usuario.setNombre_usuario(nombre_usuario);
+            usuario.setNombreUsuario(nombre_usuario);
             usuario.setNombre(nombre);
             usuario.setApellidos(apellidos);
             usuario.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));

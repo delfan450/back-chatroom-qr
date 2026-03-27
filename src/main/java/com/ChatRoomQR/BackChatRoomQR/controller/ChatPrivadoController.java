@@ -55,7 +55,7 @@ public class ChatPrivadoController {
             usuarioRepository.findById(m.getIdEmisor())
                     .ifPresent(u -> {
                         m.setNombre(u.getNombre());
-                        m.setNombre_usuario(u.getNombre_usuario());
+                        m.setNombre_usuario(u.getNombreUsuario());
                     });
         }
 
