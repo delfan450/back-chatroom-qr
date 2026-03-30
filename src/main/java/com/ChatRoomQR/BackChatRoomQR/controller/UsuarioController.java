@@ -219,6 +219,7 @@ public class UsuarioController {
             @PathVariable Integer id,
             @RequestParam String nombre,
             @RequestParam String apellidos,
+            @RequestParam String nombre_usuario,
             @RequestParam String fecha_nacimiento,
             @RequestParam String email,
             @RequestParam String telefono,
@@ -230,6 +231,7 @@ public class UsuarioController {
         return usuarioRepository.findById(id).map(user -> {
             user.setNombre(nombre);
             user.setApellidos(apellidos);
+            user.setNombreUsuario(nombre_usuario);
             user.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
             user.setEmail(email);
             user.setTelefono(telefono);
@@ -293,6 +295,7 @@ public class UsuarioController {
             r.put("id_usuario", u.getId_usuario());
             r.put("nombre", u.getNombre());
             r.put("apellidos", u.getApellidos());
+            r.put("nombre_usuario", u.getNombreUsuario());
             r.put("email", u.getEmail());
             r.put("telefono", u.getTelefono());
             r.put("fechaNacimiento", u.getFechaNacimiento());
