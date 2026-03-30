@@ -1,6 +1,7 @@
 package com.ChatRoomQR.BackChatRoomQR.controller;
 
 import com.ChatRoomQR.BackChatRoomQR.model.MensajeGrupal;
+import com.ChatRoomQR.BackChatRoomQR.model.Sala;
 import com.ChatRoomQR.BackChatRoomQR.model.UsuarioSala;
 import com.ChatRoomQR.BackChatRoomQR.repository.MensajeRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.SalaRepository;
@@ -114,10 +115,47 @@ public class ChatController {
 
         Map<String, Object> response = new HashMap<>();
 
-        boolean salaValida = salaRepository.existsById(id_sala);
+        // 1. Comprobar si la sala existe
+        Optional<Sala> salaOpt = salaRepository.findById(id_sala);
+        if (salaOpt.isEmpty()) {
+            response.put("status", "error");
+            response.put("expirado", true);
+            return ResponseEntity.ok(response);
+        }
 
-        response.put("status", salaValida ? "success" : "error");
-        response.put("expirado", !salaValida);
+        // 2. Comprobar si el usuario sigue activo en la sala
+        Optional<UsuarioSala> usOpt = usuarioSalaRepository.findByIdUsuarioAndIdSala(id_usuario, id_sala);
+        if (usOpt.isEmpty()) {
+            // Aún no hay registro (joined justo al entrar), no expulsar
+            response.put("status", "success");
+            response.put("expirado", false);
+            return ResponseEntity.ok(response);
+        }
+
+        UsuarioSala us = usOpt.get();
+
+        // 3. Si fue expulsado manualmente
+        if ("inactivo".equals(us.getEstado())) {
+            response.put("status", "error");
+            response.put("expirado", true);
+            return ResponseEntity.ok(response);
+        }
+
+        // 4. Comprobar tiempo máximo de sesión (tiempo_maximo en minutos)
+        Sala sala = salaOpt.get();
+        if (sala.getTiempo_maximo() != null && sala.getTiempo_maximo() > 0 && us.getFechaUnion() != null) {
+            LocalDateTime expiracion = us.getFechaUnion().plusMinutes(sala.getTiempo_maximo());
+            if (LocalDateTime.now().isAfter(expiracion)) {
+                us.setEstado("inactivo");
+                usuarioSalaRepository.save(us);
+                response.put("status", "error");
+                response.put("expirado", true);
+                return ResponseEntity.ok(response);
+            }
+        }
+
+        response.put("status", "success");
+        response.put("expirado", false);
         return ResponseEntity.ok(response);
     }
 
@@ -129,10 +167,17 @@ public class ChatController {
 
         Map<String, Object> response = new HashMap<>();
 
+        // Si la sala no existe en BD, crearla con valores por defecto
         if (!salaRepository.existsById(id_sala)) {
-            response.put("status", "error");
-            response.put("message", "La sala no existe");
-            return ResponseEntity.badRequest().body(response);
+            Sala nuevaSala = new Sala();
+            nuevaSala.setId_sala(id_sala);
+            nuevaSala.setNombre_sala(id_sala);
+            nuevaSala.setDescripcion("");
+            nuevaSala.setLatitud(0.0);
+            nuevaSala.setLongitud(0.0);
+            nuevaSala.setRadio_metros(0.0);
+            nuevaSala.setTiempo_maximo(120);
+            salaRepository.save(nuevaSala);
         }
 
         Optional<UsuarioSala> existente = usuarioSalaRepository.findByIdUsuarioAndIdSala(id_usuario, id_sala);
@@ -144,7 +189,9 @@ public class ChatController {
             us.setFechaUnion(LocalDateTime.now());
             usuarioSalaRepository.save(us);
         } else {
+            // Reactivar si estaba inactivo y resetear el tiempo
             existente.get().setEstado("activo");
+            existente.get().setFechaUnion(LocalDateTime.now());
             usuarioSalaRepository.save(existente.get());
         }
 
