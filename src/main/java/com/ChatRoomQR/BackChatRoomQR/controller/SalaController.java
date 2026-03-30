@@ -51,8 +51,15 @@ public class SalaController {
 
                 // Calcular minutos restantes
                 long minutosRestantes = -1;
-                if (sala.getTiempo_maximo() != null && sala.getTiempo_maximo() > 0 && us.getFechaUnion() != null) {
-                    java.time.LocalDateTime expiracion = us.getFechaUnion().plusMinutes(sala.getTiempo_maximo());
+                if (sala.getTiempo_maximo() != null && sala.getTiempo_maximo() > 0) {
+                    java.time.LocalDateTime fechaBase = us.getFechaUnion() != null
+                            ? us.getFechaUnion()
+                            : java.time.LocalDateTime.now();
+                    if (us.getFechaUnion() == null) {
+                        us.setFechaUnion(fechaBase);
+                        usuarioSalaRepository.save(us);
+                    }
+                    java.time.LocalDateTime expiracion = fechaBase.plusMinutes(sala.getTiempo_maximo());
                     minutosRestantes = java.time.Duration.between(java.time.LocalDateTime.now(), expiracion).toMinutes();
                     if (minutosRestantes < 0) minutosRestantes = 0;
                 }
