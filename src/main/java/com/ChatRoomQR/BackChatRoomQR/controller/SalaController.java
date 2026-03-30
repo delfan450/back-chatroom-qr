@@ -25,8 +25,19 @@ public class SalaController {
         List<Map<String, Object>> resultado = new ArrayList<>();
 
         for (UsuarioSala us : uniones) {
-            // Excluir salas de las que fue expulsado
             if ("inactivo".equals(us.getEstado())) continue;
+
+            // Excluir si sigue baneado
+            if ("expulsado".equals(us.getEstado())) {
+                boolean baneoActivo = true;
+                if (us.getDuracionExpulsion() != null && us.getDuracionExpulsion() > 0 && us.getFechaExpulsion() != null) {
+                    java.time.LocalDateTime finBan = us.getFechaExpulsion().plusMinutes(us.getDuracionExpulsion());
+                    baneoActivo = !java.time.LocalDateTime.now().isAfter(finBan);
+                }
+                if (baneoActivo) continue;
+                // Baneo expirado — no mostrar en lista hasta que reentren
+                continue;
+            }
 
             salaRepository.findById(us.getIdSala()).ifPresent(sala -> {
                 Map<String, Object> item = new HashMap<>();

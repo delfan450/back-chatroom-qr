@@ -22,4 +22,13 @@ public class UsuarioSala {
 
     @Column(name = "fecha_union")
     private LocalDateTime fechaUnion;
+
+    @Column(name = "motivo_expulsion")
+    private String motivoExpulsion;
+
+    @Column(name = "duracion_expulsion") // minutos; 0 = permanente
+    private Integer duracionExpulsion;
+
+    @Column(name = "fecha_expulsion")
+    private LocalDateTime fechaExpulsion;
 }
