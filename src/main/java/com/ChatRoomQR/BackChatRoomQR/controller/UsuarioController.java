@@ -166,7 +166,9 @@ public class UsuarioController {
             @RequestParam String password) {
 
         Map<String, Object> response = new HashMap<>();
-        Optional<Usuario> userOpt = usuarioRepository.findByEmail(email);
+       // Optional<Usuario> userOpt = usuarioRepository.findByEmail(email);
+        Optional<Usuario> userOpt = usuarioRepository.findByEmailOrNombreUsuario(email, email);
+
 
         if (userOpt.isPresent()) {
             Usuario user = userOpt.get();
