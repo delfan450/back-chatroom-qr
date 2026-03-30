@@ -48,6 +48,16 @@ public class SalaController {
                 item.put("radio_metros", sala.getRadio_metros() != null ? sala.getRadio_metros() : 0.0);
                 item.put("tiempo_maximo", sala.getTiempo_maximo() != null ? sala.getTiempo_maximo() : 120);
                 item.put("estado", us.getEstado());
+
+                // Calcular minutos restantes
+                long minutosRestantes = -1;
+                if (sala.getTiempo_maximo() != null && sala.getTiempo_maximo() > 0 && us.getFechaUnion() != null) {
+                    java.time.LocalDateTime expiracion = us.getFechaUnion().plusMinutes(sala.getTiempo_maximo());
+                    minutosRestantes = java.time.Duration.between(java.time.LocalDateTime.now(), expiracion).toMinutes();
+                    if (minutosRestantes < 0) minutosRestantes = 0;
+                }
+                item.put("minutos_restantes", minutosRestantes);
+
                 resultado.add(item);
             });
         }
