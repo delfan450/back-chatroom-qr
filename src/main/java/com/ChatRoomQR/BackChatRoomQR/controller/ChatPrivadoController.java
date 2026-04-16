@@ -1,7 +1,7 @@
 package com.ChatRoomQR.BackChatRoomQR.controller;
 
-import com.ChatRoomQR.BackChatRoomQR.model.MensajePrivado;
-import com.ChatRoomQR.BackChatRoomQR.repository.MensajePrivadoRepository;
+import com.ChatRoomQR.BackChatRoomQR.model.ChatPrivado;
+import com.ChatRoomQR.BackChatRoomQR.repository.ChatPrivadoRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -15,12 +15,13 @@ import java.util.*;
 public class ChatPrivadoController {
 
     @Autowired
-    private MensajePrivadoRepository mensajePrivadoRepository;
+    private ChatPrivadoRepository chatPrivadoRepository;
 
     @Autowired
     private UsuarioRepository usuarioRepository;
 
     // POST /api/chat/privado/crear?id_usuario_1=X&id_usuario_2=Y
+    // Devuelve ID determinístico del chat (no crea fila; sólo identifica el par)
     @PostMapping("/crear")
     public ResponseEntity<Map<String, Object>> crearChat(
             @RequestParam int id_usuario_1,
@@ -34,7 +35,6 @@ public class ChatPrivadoController {
             return ResponseEntity.badRequest().body(response);
         }
 
-        // Generar un ID como min(id_usuario_1, id_usuario_2) * 10000 + max(id_usuario_1, id_usuario_2)
         int minId = Math.min(id_usuario_1, id_usuario_2);
         int maxId = Math.max(id_usuario_1, id_usuario_2);
         int id_chat_privado = minId * 10000 + maxId;
@@ -49,14 +49,14 @@ public class ChatPrivadoController {
     public ResponseEntity<?> getMensajes(
             @RequestParam int id_usuario_1,
             @RequestParam int id_usuario_2) {
-        List<MensajePrivado> mensajes = mensajePrivadoRepository.findByUsuarios(id_usuario_1, id_usuario_2);
 
-        for (MensajePrivado m : mensajes) {
-            usuarioRepository.findById(m.getIdEmisor())
-                    .ifPresent(u -> {
-                        m.setNombre(u.getNombre());
-                        m.setNombre_usuario(u.getNombreUsuario());
-                    });
+        List<ChatPrivado> mensajes = chatPrivadoRepository.findMensajes(id_usuario_1, id_usuario_2);
+
+        for (ChatPrivado m : mensajes) {
+            usuarioRepository.findById(m.getIdEmisor()).ifPresent(u -> {
+                m.setNombre(u.getNombre());
+                m.setNombre_usuario(u.getNombreUsuario());
+            });
         }
 
         return ResponseEntity.ok(mensajes);
@@ -78,16 +78,68 @@ public class ChatPrivadoController {
             return ResponseEntity.badRequest().body(response);
         }
 
-        // Determinar quién es el receptor
-        int id_usuario_receptor = (id_usuario_emisor == id_usuario_1) ? id_usuario_2 : id_usuario_1;
+        int idReceptor = (id_usuario_emisor == id_usuario_1) ? id_usuario_2 : id_usuario_1;
 
-        MensajePrivado m = new MensajePrivado();
+        ChatPrivado m = new ChatPrivado();
         m.setIdEmisor(id_usuario_emisor);
-        m.setIdReceptor(id_usuario_receptor);
+        m.setIdReceptor(idReceptor);
         m.setMensaje(mensaje);
         m.setFechaHora(LocalDateTime.now());
-        mensajePrivadoRepository.save(m);
+        m.setLeida(false);
+        chatPrivadoRepository.save(m);
 
+        response.put("status", "success");
+        return ResponseEntity.ok(response);
+    }
+
+    // GET /api/chat/privado/no-leidos?id_usuario=X
+    @GetMapping("/no-leidos")
+    public ResponseEntity<?> getNoLeidos(@RequestParam int id_usuario) {
+        List<ChatPrivado> noLeidos = chatPrivadoRepository.findNoLeidos(id_usuario);
+
+        for (ChatPrivado m : noLeidos) {
+            usuarioRepository.findById(m.getIdEmisor()).ifPresent(u -> {
+                m.setNombre(u.getNombre());
+                m.setNombre_usuario(u.getNombreUsuario());
+            });
+        }
+
+        return ResponseEntity.ok(noLeidos);
+    }
+
+    // PUT /api/chat/privado/marcar-leido/{id}
+    @PutMapping("/marcar-leido/{id}")
+    public ResponseEntity<Map<String, Object>> marcarLeido(@PathVariable int id) {
+        Map<String, Object> response = new HashMap<>();
+
+        return chatPrivadoRepository.findById(id).map(m -> {
+            m.setLeida(true);
+            chatPrivadoRepository.save(m);
+            response.put("status", "success");
+            return ResponseEntity.ok(response);
+        }).orElseGet(() -> {
+            response.put("status", "error");
+            response.put("message", "Mensaje no encontrado");
+            return ResponseEntity.status(404).body(response);
+        });
+    }
+
+    // PUT /api/chat/privado/marcar-todos-leidos?id_usuario_1=X&id_usuario_2=Y&id_usuario_lector=Z
+    @PutMapping("/marcar-todos-leidos")
+    public ResponseEntity<Map<String, Object>> marcarTodosLeidos(
+            @RequestParam int id_usuario_1,
+            @RequestParam int id_usuario_2,
+            @RequestParam int id_usuario_lector) {
+
+        List<ChatPrivado> mensajes = chatPrivadoRepository.findMensajes(id_usuario_1, id_usuario_2);
+        for (ChatPrivado m : mensajes) {
+            if (m.getIdReceptor().equals(id_usuario_lector) && !Boolean.TRUE.equals(m.getLeida())) {
+                m.setLeida(true);
+                chatPrivadoRepository.save(m);
+            }
+        }
+
+        Map<String, Object> response = new HashMap<>();
         response.put("status", "success");
         return ResponseEntity.ok(response);
     }

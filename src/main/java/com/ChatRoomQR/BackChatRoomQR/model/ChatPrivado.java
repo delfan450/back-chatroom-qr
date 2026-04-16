@@ -1,5 +1,7 @@
 package com.ChatRoomQR.BackChatRoomQR.model;
 
+import com.fasterxml.jackson.annotation.JsonAutoDetect;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.time.LocalDateTime;
@@ -7,18 +9,32 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "chats_privados")
 @Data
+@JsonAutoDetect(fieldVisibility = JsonAutoDetect.Visibility.ANY, getterVisibility = JsonAutoDetect.Visibility.NONE)
 public class ChatPrivado {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id_chat_privado;
+    private Integer id;
 
-    @Column(name = "id_usuario_1")
-    private Integer idUsuario1;
+    // Android espera "id_usuario" para distinguir burbujas
+    @JsonProperty("id_usuario")
+    @Column(name = "id_emisor")
+    private Integer idEmisor;
 
-    @Column(name = "id_usuario_2")
-    private Integer idUsuario2;
+    @Column(name = "id_receptor")
+    private Integer idReceptor;
 
-    @Column(name = "fecha_creacion")
-    private LocalDateTime fechaCreacion = LocalDateTime.now();
+    private String mensaje;
+
+    @JsonProperty("fecha_hora")
+    @Column(name = "fecha_hora")
+    private LocalDateTime fechaHora = LocalDateTime.now();
+
+    private Boolean leida = false;
+
+    @Transient
+    private String nombre;
+
+    @Transient
+    private String nombre_usuario;
 }

@@ -6,13 +6,17 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
+import java.util.List;
 
 @Repository
 public interface ChatPrivadoRepository extends JpaRepository<ChatPrivado, Integer> {
 
     @Query("SELECT c FROM ChatPrivado c WHERE " +
-           "(c.idUsuario1 = :u1 AND c.idUsuario2 = :u2) OR " +
-           "(c.idUsuario1 = :u2 AND c.idUsuario2 = :u1)")
-    Optional<ChatPrivado> findByUsuarios(@Param("u1") int u1, @Param("u2") int u2);
+           "(c.idEmisor = :u1 AND c.idReceptor = :u2) OR " +
+           "(c.idEmisor = :u2 AND c.idReceptor = :u1) " +
+           "ORDER BY c.fechaHora ASC")
+    List<ChatPrivado> findMensajes(@Param("u1") int u1, @Param("u2") int u2);
+
+    @Query("SELECT c FROM ChatPrivado c WHERE c.idReceptor = :idUsuario AND c.leida = false ORDER BY c.fechaHora DESC")
+    List<ChatPrivado> findNoLeidos(@Param("idUsuario") int idUsuario);
 }
