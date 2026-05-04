@@ -340,6 +340,16 @@ public class UsuarioController {
 
 
     // 10. VERIFICAR GOOGLE OAUTH
+    @PostMapping("/login-google")
+    public ResponseEntity<Map<String, Object>> loginGoogle(
+            @RequestParam String id_token,
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String apellidos,
+            @RequestParam(required = false) String telefono,
+            @RequestParam(required = false) String foto) {
+        return verificarGoogle(id_token, nombre, apellidos, telefono, foto);
+    }
+
     @PostMapping("/verificar-google")
     public ResponseEntity<Map<String, Object>> verificarGoogle(
             @RequestParam String id_token,
