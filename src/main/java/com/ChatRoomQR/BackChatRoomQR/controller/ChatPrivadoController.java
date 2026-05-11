@@ -194,6 +194,43 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
+
+    // POST /api/chat/privado/eliminar-por-sala?id_usuario=X&id_sala_origen=GENERAL&motivo=...
+    @PostMapping("/eliminar-por-sala")
+    public ResponseEntity<Map<String, Object>> eliminarChatsPorSala(
+            @RequestParam int id_usuario,
+            @RequestParam String id_sala_origen,
+            @RequestParam(required = false) String motivo) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        if (!hasText(id_sala_origen)) {
+            response.put("status", "error");
+            response.put("message", "La sala origen es obligatoria");
+            return ResponseEntity.badRequest().body(response);
+        }
+
+        List<ChatPrivadoMeta> metas = chatPrivadoMetaRepository.findActivosBySalaAndUsuario(id_sala_origen, id_usuario);
+        String motivoFinal = hasText(motivo) ? motivo : "Chat privado eliminado por salida de la geovalla";
+
+        for (ChatPrivadoMeta meta : metas) {
+            meta.setEliminado(true);
+            meta.setMotivoEliminacion(motivoFinal);
+            meta.setFechaEliminacion(LocalDateTime.now());
+            chatPrivadoMetaRepository.save(meta);
+
+            int otherUserId = meta.getIdUsuarioMenor().equals(id_usuario)
+                    ? meta.getIdUsuarioMayor()
+                    : meta.getIdUsuarioMenor();
+            chatPrivadoRepository.deleteMensajesEntre(id_usuario, otherUserId);
+        }
+
+        response.put("status", "success");
+        response.put("eliminados", metas.size());
+        response.put("message", "Chats privados de la sala eliminados");
+        return ResponseEntity.ok(response);
+    }
+
     // GET /api/chat/privado/no-leidos?id_usuario=X
     @GetMapping("/no-leidos")
     public ResponseEntity<?> getNoLeidos(@RequestParam int id_usuario) {
@@ -288,3 +325,4 @@ public class ChatPrivadoController {
         return value != null && !value.trim().isEmpty();
     }
 }
+
