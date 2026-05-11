@@ -24,6 +24,26 @@ public class ChatPrivado {
     @Column(name = "id_receptor")
     private Integer idReceptor;
 
+    @Column(name = "id_usuario_menor")
+    private Integer idUsuarioMenor;
+
+    @Column(name = "id_usuario_mayor")
+    private Integer idUsuarioMayor;
+
+    @Column(name = "id_sala_origen")
+    private String idSalaOrigen;
+
+    @Column(name = "es_meta")
+    private Boolean esMeta = false;
+
+    private Boolean eliminado = false;
+
+    @Column(name = "motivo_eliminacion")
+    private String motivoEliminacion;
+
+    @Column(name = "fecha_eliminacion")
+    private LocalDateTime fechaEliminacion;
+
     private String mensaje;
 
     @JsonProperty("fecha_hora")

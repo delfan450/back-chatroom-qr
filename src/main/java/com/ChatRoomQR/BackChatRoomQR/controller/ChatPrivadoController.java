@@ -1,9 +1,7 @@
 package com.ChatRoomQR.BackChatRoomQR.controller;
 
 import com.ChatRoomQR.BackChatRoomQR.model.ChatPrivado;
-import com.ChatRoomQR.BackChatRoomQR.model.ChatPrivadoMeta;
 import com.ChatRoomQR.BackChatRoomQR.model.Sala;
-import com.ChatRoomQR.BackChatRoomQR.repository.ChatPrivadoMetaRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.ChatPrivadoRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.SalaRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioRepository;
@@ -21,9 +19,6 @@ public class ChatPrivadoController {
 
     @Autowired
     private ChatPrivadoRepository chatPrivadoRepository;
-
-    @Autowired
-    private ChatPrivadoMetaRepository chatPrivadoMetaRepository;
 
     @Autowired
     private UsuarioRepository usuarioRepository;
@@ -54,12 +49,12 @@ public class ChatPrivadoController {
                 return ResponseEntity.badRequest().body(response);
             }
 
-            ChatPrivadoMeta meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
+            ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
             meta.setIdSalaOrigen(id_sala_origen);
             meta.setEliminado(false);
             meta.setMotivoEliminacion(null);
             meta.setFechaEliminacion(null);
-            chatPrivadoMetaRepository.save(meta);
+            chatPrivadoRepository.save(meta);
         }
 
         int id_chat_privado = getIdChatDeterministico(id_usuario_1, id_usuario_2);
@@ -76,7 +71,7 @@ public class ChatPrivadoController {
             @RequestParam int id_usuario_2) {
 
         Map<String, Object> response = new HashMap<>();
-        Optional<ChatPrivadoMeta> metaOpt = buscarMeta(id_usuario_1, id_usuario_2);
+        Optional<ChatPrivado> metaOpt = buscarMeta(id_usuario_1, id_usuario_2);
 
         response.put("status", "success");
         response.put("id_chat_privado", getIdChatDeterministico(id_usuario_1, id_usuario_2));
@@ -87,7 +82,7 @@ public class ChatPrivadoController {
             return ResponseEntity.ok(response);
         }
 
-        ChatPrivadoMeta meta = metaOpt.get();
+        ChatPrivado meta = metaOpt.get();
         response.put("eliminado", Boolean.TRUE.equals(meta.getEliminado()));
         response.put("motivo_eliminacion", meta.getMotivoEliminacion());
         response.put("id_sala_origen", meta.getIdSalaOrigen() != null ? meta.getIdSalaOrigen() : "");
@@ -148,10 +143,10 @@ public class ChatPrivadoController {
         }
 
         if (hasText(id_sala_origen)) {
-            ChatPrivadoMeta meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
+            ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
             if (!hasText(meta.getIdSalaOrigen())) {
                 meta.setIdSalaOrigen(id_sala_origen);
-                chatPrivadoMetaRepository.save(meta);
+                chatPrivadoRepository.save(meta);
             }
         }
 
@@ -163,6 +158,7 @@ public class ChatPrivadoController {
         m.setMensaje(mensaje);
         m.setFechaHora(LocalDateTime.now());
         m.setLeida(false);
+        m.setEsMeta(false);
         chatPrivadoRepository.save(m);
 
         response.put("status", "success");
@@ -177,14 +173,14 @@ public class ChatPrivadoController {
             @RequestParam(required = false) String id_sala_origen,
             @RequestParam(required = false) String motivo) {
 
-        ChatPrivadoMeta meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
+        ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
         if (hasText(id_sala_origen)) {
             meta.setIdSalaOrigen(id_sala_origen);
         }
         meta.setEliminado(true);
         meta.setMotivoEliminacion(hasText(motivo) ? motivo : "Chat privado eliminado por geovalla");
         meta.setFechaEliminacion(LocalDateTime.now());
-        chatPrivadoMetaRepository.save(meta);
+        chatPrivadoRepository.save(meta);
 
         chatPrivadoRepository.deleteMensajesEntre(id_usuario_1, id_usuario_2);
 
@@ -210,14 +206,14 @@ public class ChatPrivadoController {
             return ResponseEntity.badRequest().body(response);
         }
 
-        List<ChatPrivadoMeta> metas = chatPrivadoMetaRepository.findActivosBySalaAndUsuario(id_sala_origen, id_usuario);
+        List<ChatPrivado> metas = chatPrivadoRepository.findMetasActivasBySalaAndUsuario(id_sala_origen, id_usuario);
         String motivoFinal = hasText(motivo) ? motivo : "Chat privado eliminado por salida de la geovalla";
 
-        for (ChatPrivadoMeta meta : metas) {
+        for (ChatPrivado meta : metas) {
             meta.setEliminado(true);
             meta.setMotivoEliminacion(motivoFinal);
             meta.setFechaEliminacion(LocalDateTime.now());
-            chatPrivadoMetaRepository.save(meta);
+            chatPrivadoRepository.save(meta);
 
             int otherUserId = meta.getIdUsuarioMenor().equals(id_usuario)
                     ? meta.getIdUsuarioMayor()
@@ -283,24 +279,30 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
-    private ChatPrivadoMeta obtenerOCrearMeta(int idUsuario1, int idUsuario2) {
+    private ChatPrivado obtenerOCrearMeta(int idUsuario1, int idUsuario2) {
         int minId = Math.min(idUsuario1, idUsuario2);
         int maxId = Math.max(idUsuario1, idUsuario2);
-        return chatPrivadoMetaRepository
-                .findByIdUsuarioMenorAndIdUsuarioMayor(minId, maxId)
+        return chatPrivadoRepository
+                .findMetaByPair(minId, maxId)
                 .orElseGet(() -> {
-                    ChatPrivadoMeta meta = new ChatPrivadoMeta();
+                    ChatPrivado meta = new ChatPrivado();
                     meta.setIdUsuarioMenor(minId);
                     meta.setIdUsuarioMayor(maxId);
+                    meta.setIdEmisor(minId);
+                    meta.setIdReceptor(maxId);
+                    meta.setMensaje("[[PRIVATE_CHAT_META]]");
+                    meta.setFechaHora(LocalDateTime.now());
+                    meta.setLeida(true);
+                    meta.setEsMeta(true);
                     meta.setEliminado(false);
                     return meta;
                 });
     }
 
-    private Optional<ChatPrivadoMeta> buscarMeta(int idUsuario1, int idUsuario2) {
+    private Optional<ChatPrivado> buscarMeta(int idUsuario1, int idUsuario2) {
         int minId = Math.min(idUsuario1, idUsuario2);
         int maxId = Math.max(idUsuario1, idUsuario2);
-        return chatPrivadoMetaRepository.findByIdUsuarioMenorAndIdUsuarioMayor(minId, maxId);
+        return chatPrivadoRepository.findMetaByPair(minId, maxId);
     }
 
     private boolean chatEstaEliminado(int idUsuario1, int idUsuario2) {
