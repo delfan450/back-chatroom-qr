@@ -202,7 +202,7 @@ public class ChatController {
         if (existente.isPresent()) {
             UsuarioSala us = existente.get();
 
-            // Comprobar si sigue baneado
+            // Comprobar baneado
             if ("expulsado".equals(us.getEstado())) {
                 boolean baneoActivo = true;
                 if (us.getDuracionExpulsion() != null && us.getDuracionExpulsion() > 0 && us.getFechaExpulsion() != null) {
@@ -232,7 +232,7 @@ public class ChatController {
         return ResponseEntity.ok(response);
     }
 
-    // --- 6. EXPULSAR DE SALA ---
+    // --- 6. EXPULSAR DE SALA --
     @PostMapping("/expulsar")
     public ResponseEntity<Map<String, Object>> expulsarDeChat(
             @RequestParam int id_usuario_admin,
@@ -243,7 +243,7 @@ public class ChatController {
 
         Map<String, Object> response = new HashMap<>();
 
-        // Verificar que quien expulsa es admin (id_rol=1 o id_rol=2)
+        // Verificar que quien expulsa es admin
         boolean tienePermiso = rolUsuarioRepository.findByIdUsuario(id_usuario_admin)
                 .map(r -> r.getIdRol() == 1 || r.getIdRol() == 2)
                 .orElse(false);

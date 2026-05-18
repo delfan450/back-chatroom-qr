@@ -281,26 +281,24 @@ public class UsuarioController {
 
     // 6. BUSCAR POR EMAIL
     @GetMapping("/buscar")
-    public ResponseEntity<List<Map<String, Object>>> buscarPorEmail(@RequestParam String email) {
-        // 1. Buscamos una lista de usuarios que contengan ese texto (Ignora mayúsculas/minúsculas)
-        List<Usuario> usuarios = usuarioRepository.findByEmailContainingIgnoreCase(email);
+    public ResponseEntity<List<Map<String, Object>>> buscarUsuarios(@RequestParam String query) {
+        // Buscamos en email, nombre y nombre_usuario usando el mismo texto
+        List<Usuario> usuarios = usuarioRepository.findByEmailContainingIgnoreCaseOrNombreContainingIgnoreCaseOrNombreUsuarioContainingIgnoreCase(query, query, query);
 
         if (usuarios.isEmpty()) {
-            return ResponseEntity.noContent().build(); // Devuelve 204 si no hay nadie
+            return ResponseEntity.noContent().build();
         }
 
-        // 2. Transformamos la lista de Usuarios en una lista de Mapas con sus roles
         List<Map<String, Object>> respuesta = usuarios.stream().map(u -> {
             Map<String, Object> r = new HashMap<>();
             r.put("id_usuario", u.getId_usuario());
             r.put("nombre", u.getNombre());
             r.put("apellidos", u.getApellidos());
-            r.put("nombre_usuario", u.getNombreUsuario());
+            r.put("nombre_usuario", u.getNombreUsuario()); // Este campo ya lo estabas enviando
             r.put("email", u.getEmail());
             r.put("telefono", u.getTelefono());
             r.put("fechaNacimiento", u.getFechaNacimiento());
 
-            // Buscamos el rol de cada uno
             String rol = rolUsuarioRepository.findRolNameByIdUsuario(u.getId_usuario()).orElse("usuario");
             r.put("rol", rol);
 
