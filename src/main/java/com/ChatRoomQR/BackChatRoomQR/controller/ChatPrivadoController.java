@@ -31,7 +31,7 @@ public class ChatPrivadoController {
     private PrivateChatCleanupService privateChatCleanupService;
 
     // POST /api/chat/privado/crear?id_usuario_1=X&id_usuario_2=Y&id_sala_origen=GENERAL
-    // Devuelve ID deterministico del chat y, si viene de una sala, asocia su geovalla.
+    // Devuelve ID deterministico de conversacion; los datos reales viven en los mensajes.
     @PostMapping("/crear")
     public ResponseEntity<Map<String, Object>> crearChat(
             @RequestParam int id_usuario_1,
@@ -46,29 +46,17 @@ public class ChatPrivadoController {
             return ResponseEntity.badRequest().body(response);
         }
 
-        if (hasText(id_sala_origen)) {
-            if (!salaRepository.existsById(id_sala_origen)) {
-                response.put("status", "error");
-                response.put("message", "La sala origen no existe");
-                return ResponseEntity.badRequest().body(response);
-            }
-
-            ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
-            meta.setIdSalaOrigen(id_sala_origen);
-            meta.setEliminado(false);
-            meta.setMotivoEliminacion(null);
-            meta.setFechaEliminacion(null);
-            if (!hasText(meta.getEstado())) {
-                meta.setEstado("PENDIENTE");
-            }
-            chatPrivadoRepository.save(meta);
+        if (hasText(id_sala_origen) && !salaRepository.existsById(id_sala_origen)) {
+            response.put("status", "error");
+            response.put("message", "La sala origen no existe");
+            return ResponseEntity.badRequest().body(response);
         }
 
         int id_chat_privado = getIdChatDeterministico(id_usuario_1, id_usuario_2);
 
         response.put("status", "success");
         response.put("id_chat_privado", id_chat_privado);
-        buscarMeta(id_usuario_1, id_usuario_2).ifPresent(meta -> response.put("estado", normalizarEstado(meta.getEstado())));
+        response.put("estado", estadoConversacion(id_usuario_1, id_usuario_2));
         return ResponseEntity.ok(response);
     }
 
@@ -79,26 +67,26 @@ public class ChatPrivadoController {
             @RequestParam int id_usuario_2) {
 
         Map<String, Object> response = new HashMap<>();
-        Optional<ChatPrivado> metaOpt = buscarMeta(id_usuario_1, id_usuario_2);
+        Optional<ChatPrivado> ultimoOpt = ultimoMensaje(id_usuario_1, id_usuario_2);
 
         response.put("status", "success");
         response.put("id_chat_privado", getIdChatDeterministico(id_usuario_1, id_usuario_2));
 
-        if (metaOpt.isEmpty()) {
+        if (ultimoOpt.isEmpty()) {
             response.put("eliminado", false);
             response.put("id_sala_origen", "");
             response.put("estado", "VACIO");
             return ResponseEntity.ok(response);
         }
 
-        ChatPrivado meta = metaOpt.get();
-        response.put("eliminado", Boolean.TRUE.equals(meta.getEliminado()));
-        response.put("estado", normalizarEstado(meta.getEstado()));
-        response.put("motivo_eliminacion", meta.getMotivoEliminacion());
-        response.put("id_sala_origen", meta.getIdSalaOrigen() != null ? meta.getIdSalaOrigen() : "");
+        ChatPrivado ultimo = ultimoOpt.get();
+        response.put("eliminado", Boolean.TRUE.equals(ultimo.getEliminado()));
+        response.put("estado", normalizarEstado(ultimo.getEstado()));
+        response.put("motivo_eliminacion", ultimo.getMotivoEliminacion());
+        response.put("id_sala_origen", ultimo.getIdSalaOrigen() != null ? ultimo.getIdSalaOrigen() : "");
 
-        if (hasText(meta.getIdSalaOrigen())) {
-            salaRepository.findById(meta.getIdSalaOrigen()).ifPresent(sala -> anadirInfoSala(response, sala));
+        if (hasText(ultimo.getIdSalaOrigen())) {
+            salaRepository.findById(ultimo.getIdSalaOrigen()).ifPresent(sala -> anadirInfoSala(response, sala));
         }
 
         return ResponseEntity.ok(response);
@@ -152,27 +140,23 @@ public class ChatPrivadoController {
             return ResponseEntity.status(HttpStatus.GONE).body(response);
         }
 
-        if (hasText(id_sala_origen)) {
-            ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
-            if (!hasText(meta.getIdSalaOrigen())) {
-                meta.setIdSalaOrigen(id_sala_origen);
-            }
-            if (!hasText(meta.getEstado())) {
-                meta.setEstado("PENDIENTE");
-            }
-            chatPrivadoRepository.save(meta);
-        }
+        Optional<ChatPrivado> ultimoOpt = ultimoMensaje(id_usuario_1, id_usuario_2);
+        String estado = ultimoOpt.map(m -> normalizarEstado(m.getEstado())).orElse("PENDIENTE");
+        String salaOrigen = hasText(id_sala_origen)
+                ? id_sala_origen
+                : ultimoOpt.map(ChatPrivado::getIdSalaOrigen).orElse(null);
 
-        ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
         if (esControlAceptado(mensaje)) {
-            meta.setEstado("ACEPTADO");
-            chatPrivadoRepository.save(meta);
-        } else if (esControlRechazado(mensaje)) {
-            meta.setEstado("RECHAZADO");
-            chatPrivadoRepository.save(meta);
-        } else if (!hasText(meta.getEstado()) || "VACIO".equalsIgnoreCase(meta.getEstado())) {
-            meta.setEstado("PENDIENTE");
-            chatPrivadoRepository.save(meta);
+            chatPrivadoRepository.updateEstadoConversacion(id_usuario_1, id_usuario_2, "ACEPTADO");
+            response.put("status", "success");
+            response.put("estado", "ACEPTADO");
+            return ResponseEntity.ok(response);
+        }
+        if (esControlRechazado(mensaje)) {
+            chatPrivadoRepository.updateEstadoConversacion(id_usuario_1, id_usuario_2, "RECHAZADO");
+            response.put("status", "success");
+            response.put("estado", "RECHAZADO");
+            return ResponseEntity.ok(response);
         }
 
         int idReceptor = (id_usuario_emisor == id_usuario_1) ? id_usuario_2 : id_usuario_1;
@@ -180,11 +164,12 @@ public class ChatPrivadoController {
         ChatPrivado m = new ChatPrivado();
         m.setIdEmisor(id_usuario_emisor);
         m.setIdReceptor(idReceptor);
+        m.setIdSalaOrigen(salaOrigen);
         m.setMensaje(mensaje);
         m.setFechaHora(LocalDateTime.now());
         m.setLeida(false);
-        m.setEsMeta(false);
-        m.setEstado(normalizarEstado(meta.getEstado()));
+        m.setEliminado(false);
+        m.setEstado(estado);
         chatPrivadoRepository.save(m);
 
         response.put("status", "success");
@@ -199,16 +184,16 @@ public class ChatPrivadoController {
             @RequestParam(required = false) String id_sala_origen,
             @RequestParam(required = false) String motivo) {
 
-        ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
-        if (hasText(id_sala_origen)) {
-            meta.setIdSalaOrigen(id_sala_origen);
+        List<ChatPrivado> mensajes = chatPrivadoRepository.findConversacion(id_usuario_1, id_usuario_2);
+        for (ChatPrivado mensaje : mensajes) {
+            if (hasText(id_sala_origen)) {
+                mensaje.setIdSalaOrigen(id_sala_origen);
+            }
+            mensaje.setEliminado(true);
+            mensaje.setMotivoEliminacion(hasText(motivo) ? motivo : "Chat privado eliminado por geovalla");
+            mensaje.setFechaEliminacion(LocalDateTime.now());
+            chatPrivadoRepository.save(mensaje);
         }
-        meta.setEliminado(true);
-        meta.setMotivoEliminacion(hasText(motivo) ? motivo : "Chat privado eliminado por geovalla");
-        meta.setFechaEliminacion(LocalDateTime.now());
-        chatPrivadoRepository.save(meta);
-
-        chatPrivadoRepository.deleteMensajesEntre(id_usuario_1, id_usuario_2);
 
         Map<String, Object> response = new HashMap<>();
         response.put("status", "success");
@@ -254,13 +239,9 @@ public class ChatPrivadoController {
             Map<String, Object> item = new HashMap<>();
             int remitenteId = mensaje.getIdEmisor();
             item.put("remitente_id", remitenteId);
-            item.put("id_mensaje", mensaje.getId());
+            item.put("id_mensaje", mensaje.getIdChatPrivado());
             item.put("contenido", mensaje.getMensaje());
-            buscarMeta(id_usuario, remitenteId)
-                    .ifPresentOrElse(
-                            meta -> item.put("estado", normalizarEstado(meta.getEstado())),
-                            () -> item.put("estado", "PENDIENTE")
-                    );
+            item.put("estado", estadoConversacion(id_usuario, remitenteId));
             usuarioRepository.findById(remitenteId).ifPresent(u -> {
                 item.put("nombre", u.getNombre());
                 item.put("nombre_usuario", u.getNombreUsuario());
@@ -323,37 +304,20 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
-    private ChatPrivado obtenerOCrearMeta(int idUsuario1, int idUsuario2) {
-        int minId = Math.min(idUsuario1, idUsuario2);
-        int maxId = Math.max(idUsuario1, idUsuario2);
-        return chatPrivadoRepository
-                .findMetaByPair(minId, maxId)
-                .orElseGet(() -> {
-                    ChatPrivado meta = new ChatPrivado();
-                    meta.setIdUsuarioMenor(minId);
-                    meta.setIdUsuarioMayor(maxId);
-                    meta.setIdEmisor(minId);
-                    meta.setIdReceptor(maxId);
-                    meta.setMensaje("[[PRIVATE_CHAT_META]]");
-                    meta.setFechaHora(LocalDateTime.now());
-                    meta.setLeida(true);
-                    meta.setEsMeta(true);
-                    meta.setEliminado(false);
-                    meta.setEstado("PENDIENTE");
-                    return meta;
-                });
-    }
-
-    private Optional<ChatPrivado> buscarMeta(int idUsuario1, int idUsuario2) {
-        int minId = Math.min(idUsuario1, idUsuario2);
-        int maxId = Math.max(idUsuario1, idUsuario2);
-        return chatPrivadoRepository.findMetaByPair(minId, maxId);
+    private Optional<ChatPrivado> ultimoMensaje(int idUsuario1, int idUsuario2) {
+        return chatPrivadoRepository.findConversacion(idUsuario1, idUsuario2).stream().findFirst();
     }
 
     private boolean chatEstaEliminado(int idUsuario1, int idUsuario2) {
-        return buscarMeta(idUsuario1, idUsuario2)
-                .map(meta -> Boolean.TRUE.equals(meta.getEliminado()))
+        return ultimoMensaje(idUsuario1, idUsuario2)
+                .map(mensaje -> Boolean.TRUE.equals(mensaje.getEliminado()))
                 .orElse(false);
+    }
+
+    private String estadoConversacion(int idUsuario1, int idUsuario2) {
+        return ultimoMensaje(idUsuario1, idUsuario2)
+                .map(mensaje -> normalizarEstado(mensaje.getEstado()))
+                .orElse("VACIO");
     }
 
     private int getIdChatDeterministico(int idUsuario1, int idUsuario2) {

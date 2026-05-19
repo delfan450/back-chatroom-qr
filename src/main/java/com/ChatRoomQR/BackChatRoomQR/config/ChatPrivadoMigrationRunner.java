@@ -17,19 +17,34 @@ public class ChatPrivadoMigrationRunner implements CommandLineRunner {
     public void run(String... args) {
         jdbcTemplate.execute("ALTER TABLE chats_privados ADD COLUMN IF NOT EXISTS estado VARCHAR(32) DEFAULT 'PENDIENTE'");
         jdbcTemplate.execute("UPDATE chats_privados SET estado = 'PENDIENTE' WHERE estado IS NULL");
+        jdbcTemplate.execute("""
+                DO $$
+                BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.columns
+                        WHERE table_schema = 'public'
+                          AND table_name = 'chats_privados'
+                          AND column_name = 'es_meta'
+                    ) THEN
+                        DELETE FROM chats_privados WHERE es_meta = TRUE;
+                    END IF;
+                END $$;
+                """);
+        jdbcTemplate.execute("DROP INDEX IF EXISTS ux_chats_privados_meta_pair");
+        jdbcTemplate.execute("ALTER TABLE chats_privados DROP COLUMN IF EXISTS es_meta");
+        jdbcTemplate.execute("ALTER TABLE chats_privados DROP COLUMN IF EXISTS id_usuario_mayor");
+        jdbcTemplate.execute("ALTER TABLE chats_privados DROP COLUMN IF EXISTS id_usuario_menor");
+        jdbcTemplate.execute("ALTER TABLE chats_privados DROP COLUMN IF EXISTS id");
         jdbcTemplate.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS estado VARCHAR(32) DEFAULT 'PENDIENTE'");
         jdbcTemplate.execute("UPDATE usuarios SET estado = CASE WHEN is_verified = TRUE THEN 'ACTIVO' ELSE 'PENDIENTE' END WHERE estado IS NULL");
         jdbcTemplate.execute("ALTER TABLE salas ADD COLUMN IF NOT EXISTS estado VARCHAR(32) DEFAULT 'activa'");
         jdbcTemplate.execute("UPDATE salas SET estado = 'activa' WHERE estado IS NULL");
+        jdbcTemplate.execute("ALTER TABLE salas DROP COLUMN IF EXISTS tiempo_max_minutos");
+        jdbcTemplate.execute("ALTER TABLE salas DROP COLUMN IF EXISTS tiempo_pendiente");
         jdbcTemplate.execute("ALTER TABLE usuario_sala ADD COLUMN IF NOT EXISTS ultima_latitud DOUBLE PRECISION");
         jdbcTemplate.execute("ALTER TABLE usuario_sala ADD COLUMN IF NOT EXISTS ultima_longitud DOUBLE PRECISION");
         jdbcTemplate.execute("ALTER TABLE usuario_sala ADD COLUMN IF NOT EXISTS ultima_ubicacion_at TIMESTAMP");
-
-        jdbcTemplate.execute("""
-                CREATE UNIQUE INDEX IF NOT EXISTS ux_chats_privados_meta_pair
-                ON chats_privados (id_usuario_menor, id_usuario_mayor)
-                WHERE es_meta = TRUE
-                """);
+        jdbcTemplate.execute("DROP TABLE IF EXISTS verification_codes");
 
         Integer metaTableCount = jdbcTemplate.queryForObject("""
                 SELECT COUNT(*)
@@ -41,44 +56,6 @@ public class ChatPrivadoMigrationRunner implements CommandLineRunner {
         if (metaTableCount == null || metaTableCount == 0) {
             return;
         }
-
-        jdbcTemplate.update("""
-                INSERT INTO chats_privados (
-                    id_emisor,
-                    id_receptor,
-                    id_usuario_menor,
-                    id_usuario_mayor,
-                    id_sala_origen,
-                    es_meta,
-                    eliminado,
-                    motivo_eliminacion,
-                    fecha_eliminacion,
-                    mensaje,
-                    fecha_hora,
-                    leida
-                )
-                SELECT
-                    meta.id_usuario_menor,
-                    meta.id_usuario_mayor,
-                    meta.id_usuario_menor,
-                    meta.id_usuario_mayor,
-                    meta.id_sala_origen,
-                    TRUE,
-                    COALESCE(meta.eliminado, FALSE),
-                    meta.motivo_eliminacion,
-                    meta.fecha_eliminacion,
-                    '[[PRIVATE_CHAT_META]]',
-                    COALESCE(meta.fecha_eliminacion, CURRENT_TIMESTAMP),
-                    TRUE
-                FROM chats_privados_meta meta
-                WHERE NOT EXISTS (
-                    SELECT 1
-                    FROM chats_privados cp
-                    WHERE cp.es_meta = TRUE
-                      AND cp.id_usuario_menor = meta.id_usuario_menor
-                      AND cp.id_usuario_mayor = meta.id_usuario_mayor
-                )
-                """);
 
         jdbcTemplate.execute("DROP TABLE chats_privados_meta");
     }

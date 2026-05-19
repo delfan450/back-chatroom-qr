@@ -19,6 +19,5 @@ public class Sala {
     private Double longitud;
     private Double radio_metros;
     private Integer tiempo_maximo;
-    private Integer tiempo_pendiente;
     private String estado = "activa";
 }

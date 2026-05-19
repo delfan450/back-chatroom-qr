@@ -13,8 +13,10 @@ import java.time.LocalDateTime;
 public class ChatPrivado {
 
     @Id
+    @JsonProperty("id")
+    @Column(name = "id_chat_privado")
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Integer id;
+    private Integer idChatPrivado;
 
     // Android espera "id_usuario" para distinguir burbujas
     @JsonProperty("id_usuario")
@@ -24,17 +26,8 @@ public class ChatPrivado {
     @Column(name = "id_receptor")
     private Integer idReceptor;
 
-    @Column(name = "id_usuario_menor")
-    private Integer idUsuarioMenor;
-
-    @Column(name = "id_usuario_mayor")
-    private Integer idUsuarioMayor;
-
     @Column(name = "id_sala_origen")
     private String idSalaOrigen;
-
-    @Column(name = "es_meta")
-    private Boolean esMeta = false;
 
     private Boolean eliminado = false;
 

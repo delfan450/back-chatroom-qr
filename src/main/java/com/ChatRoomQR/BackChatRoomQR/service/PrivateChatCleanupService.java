@@ -21,22 +21,17 @@ public class PrivateChatCleanupService {
             return 0;
         }
 
-        List<ChatPrivado> metas = chatPrivadoRepository.findMetasActivasBySalaAndUsuario(idSalaOrigen, idUsuario);
+        List<ChatPrivado> mensajes = chatPrivadoRepository.findActivosBySalaAndUsuario(idSalaOrigen, idUsuario);
         String motivoFinal = hasText(motivo) ? motivo : "Chat privado eliminado al finalizar la sesion de sala";
 
-        for (ChatPrivado meta : metas) {
-            meta.setEliminado(true);
-            meta.setMotivoEliminacion(motivoFinal);
-            meta.setFechaEliminacion(LocalDateTime.now());
-            chatPrivadoRepository.save(meta);
-
-            Integer otherUserId = meta.getIdUsuarioMenor().equals(idUsuario)
-                    ? meta.getIdUsuarioMayor()
-                    : meta.getIdUsuarioMenor();
-            chatPrivadoRepository.deleteMensajesEntre(idUsuario, otherUserId);
+        for (ChatPrivado mensaje : mensajes) {
+            mensaje.setEliminado(true);
+            mensaje.setMotivoEliminacion(motivoFinal);
+            mensaje.setFechaEliminacion(LocalDateTime.now());
+            chatPrivadoRepository.save(mensaje);
         }
 
-        return metas.size();
+        return mensajes.size();
     }
 
     private boolean hasText(String value) {
