@@ -15,6 +15,16 @@ public class ChatPrivadoMigrationRunner implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
+        jdbcTemplate.execute("ALTER TABLE chats_privados ADD COLUMN IF NOT EXISTS estado VARCHAR(32) DEFAULT 'PENDIENTE'");
+        jdbcTemplate.execute("UPDATE chats_privados SET estado = 'PENDIENTE' WHERE estado IS NULL");
+        jdbcTemplate.execute("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS estado VARCHAR(32) DEFAULT 'PENDIENTE'");
+        jdbcTemplate.execute("UPDATE usuarios SET estado = CASE WHEN is_verified = TRUE THEN 'ACTIVO' ELSE 'PENDIENTE' END WHERE estado IS NULL");
+        jdbcTemplate.execute("ALTER TABLE salas ADD COLUMN IF NOT EXISTS estado VARCHAR(32) DEFAULT 'activa'");
+        jdbcTemplate.execute("UPDATE salas SET estado = 'activa' WHERE estado IS NULL");
+        jdbcTemplate.execute("ALTER TABLE usuario_sala ADD COLUMN IF NOT EXISTS ultima_latitud DOUBLE PRECISION");
+        jdbcTemplate.execute("ALTER TABLE usuario_sala ADD COLUMN IF NOT EXISTS ultima_longitud DOUBLE PRECISION");
+        jdbcTemplate.execute("ALTER TABLE usuario_sala ADD COLUMN IF NOT EXISTS ultima_ubicacion_at TIMESTAMP");
+
         jdbcTemplate.execute("""
                 CREATE UNIQUE INDEX IF NOT EXISTS ux_chats_privados_meta_pair
                 ON chats_privados (id_usuario_menor, id_usuario_mayor)

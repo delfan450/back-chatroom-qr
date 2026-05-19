@@ -31,4 +31,13 @@ public class UsuarioSala {
 
     @Column(name = "fecha_expulsion")
     private LocalDateTime fechaExpulsion;
+
+    @Column(name = "ultima_latitud")
+    private Double ultimaLatitud;
+
+    @Column(name = "ultima_longitud")
+    private Double ultimaLongitud;
+
+    @Column(name = "ultima_ubicacion_at")
+    private LocalDateTime ultimaUbicacionAt;
 }

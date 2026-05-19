@@ -5,6 +5,7 @@ import com.ChatRoomQR.BackChatRoomQR.model.Sala;
 import com.ChatRoomQR.BackChatRoomQR.repository.ChatPrivadoRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.SalaRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioRepository;
+import com.ChatRoomQR.BackChatRoomQR.service.PrivateChatCleanupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +26,9 @@ public class ChatPrivadoController {
 
     @Autowired
     private SalaRepository salaRepository;
+
+    @Autowired
+    private PrivateChatCleanupService privateChatCleanupService;
 
     // POST /api/chat/privado/crear?id_usuario_1=X&id_usuario_2=Y&id_sala_origen=GENERAL
     // Devuelve ID deterministico del chat y, si viene de una sala, asocia su geovalla.
@@ -54,6 +58,9 @@ public class ChatPrivadoController {
             meta.setEliminado(false);
             meta.setMotivoEliminacion(null);
             meta.setFechaEliminacion(null);
+            if (!hasText(meta.getEstado())) {
+                meta.setEstado("PENDIENTE");
+            }
             chatPrivadoRepository.save(meta);
         }
 
@@ -61,6 +68,7 @@ public class ChatPrivadoController {
 
         response.put("status", "success");
         response.put("id_chat_privado", id_chat_privado);
+        buscarMeta(id_usuario_1, id_usuario_2).ifPresent(meta -> response.put("estado", normalizarEstado(meta.getEstado())));
         return ResponseEntity.ok(response);
     }
 
@@ -79,11 +87,13 @@ public class ChatPrivadoController {
         if (metaOpt.isEmpty()) {
             response.put("eliminado", false);
             response.put("id_sala_origen", "");
+            response.put("estado", "VACIO");
             return ResponseEntity.ok(response);
         }
 
         ChatPrivado meta = metaOpt.get();
         response.put("eliminado", Boolean.TRUE.equals(meta.getEliminado()));
+        response.put("estado", normalizarEstado(meta.getEstado()));
         response.put("motivo_eliminacion", meta.getMotivoEliminacion());
         response.put("id_sala_origen", meta.getIdSalaOrigen() != null ? meta.getIdSalaOrigen() : "");
 
@@ -146,8 +156,23 @@ public class ChatPrivadoController {
             ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
             if (!hasText(meta.getIdSalaOrigen())) {
                 meta.setIdSalaOrigen(id_sala_origen);
-                chatPrivadoRepository.save(meta);
             }
+            if (!hasText(meta.getEstado())) {
+                meta.setEstado("PENDIENTE");
+            }
+            chatPrivadoRepository.save(meta);
+        }
+
+        ChatPrivado meta = obtenerOCrearMeta(id_usuario_1, id_usuario_2);
+        if (esControlAceptado(mensaje)) {
+            meta.setEstado("ACEPTADO");
+            chatPrivadoRepository.save(meta);
+        } else if (esControlRechazado(mensaje)) {
+            meta.setEstado("RECHAZADO");
+            chatPrivadoRepository.save(meta);
+        } else if (!hasText(meta.getEstado()) || "VACIO".equalsIgnoreCase(meta.getEstado())) {
+            meta.setEstado("PENDIENTE");
+            chatPrivadoRepository.save(meta);
         }
 
         int idReceptor = (id_usuario_emisor == id_usuario_1) ? id_usuario_2 : id_usuario_1;
@@ -159,6 +184,7 @@ public class ChatPrivadoController {
         m.setFechaHora(LocalDateTime.now());
         m.setLeida(false);
         m.setEsMeta(false);
+        m.setEstado(normalizarEstado(meta.getEstado()));
         chatPrivadoRepository.save(m);
 
         response.put("status", "success");
@@ -206,24 +232,42 @@ public class ChatPrivadoController {
             return ResponseEntity.badRequest().body(response);
         }
 
-        List<ChatPrivado> metas = chatPrivadoRepository.findMetasActivasBySalaAndUsuario(id_sala_origen, id_usuario);
-        String motivoFinal = hasText(motivo) ? motivo : "Chat privado eliminado por salida de la geovalla";
-
-        for (ChatPrivado meta : metas) {
-            meta.setEliminado(true);
-            meta.setMotivoEliminacion(motivoFinal);
-            meta.setFechaEliminacion(LocalDateTime.now());
-            chatPrivadoRepository.save(meta);
-
-            int otherUserId = meta.getIdUsuarioMenor().equals(id_usuario)
-                    ? meta.getIdUsuarioMayor()
-                    : meta.getIdUsuarioMenor();
-            chatPrivadoRepository.deleteMensajesEntre(id_usuario, otherUserId);
-        }
+        int eliminados = privateChatCleanupService.cerrarChatsDeSalaParaUsuario(
+                id_usuario,
+                id_sala_origen,
+                hasText(motivo) ? motivo : "Chat privado eliminado por salida de la geovalla"
+        );
 
         response.put("status", "success");
-        response.put("eliminados", metas.size());
+        response.put("eliminados", eliminados);
         response.put("message", "Chats privados de la sala eliminados");
+        return ResponseEntity.ok(response);
+    }
+
+    // GET /api/chat/privado/resumen-notificaciones?id_usuario=X
+    @GetMapping("/resumen-notificaciones")
+    public ResponseEntity<List<Map<String, Object>>> getResumenNotificaciones(@RequestParam int id_usuario) {
+        List<ChatPrivado> noLeidos = chatPrivadoRepository.findResumenNoLeidos(id_usuario);
+        List<Map<String, Object>> response = new ArrayList<>();
+
+        for (ChatPrivado mensaje : noLeidos) {
+            Map<String, Object> item = new HashMap<>();
+            int remitenteId = mensaje.getIdEmisor();
+            item.put("remitente_id", remitenteId);
+            item.put("id_mensaje", mensaje.getId());
+            item.put("contenido", mensaje.getMensaje());
+            buscarMeta(id_usuario, remitenteId)
+                    .ifPresentOrElse(
+                            meta -> item.put("estado", normalizarEstado(meta.getEstado())),
+                            () -> item.put("estado", "PENDIENTE")
+                    );
+            usuarioRepository.findById(remitenteId).ifPresent(u -> {
+                item.put("nombre", u.getNombre());
+                item.put("nombre_usuario", u.getNombreUsuario());
+            });
+            response.add(item);
+        }
+
         return ResponseEntity.ok(response);
     }
 
@@ -295,6 +339,7 @@ public class ChatPrivadoController {
                     meta.setLeida(true);
                     meta.setEsMeta(true);
                     meta.setEliminado(false);
+                    meta.setEstado("PENDIENTE");
                     return meta;
                 });
     }
@@ -325,6 +370,18 @@ public class ChatPrivadoController {
 
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
+    }
+
+    private boolean esControlAceptado(String message) {
+        return "[[PRIVATE_CHAT_STATUS:ACCEPTED]]".equals(message);
+    }
+
+    private boolean esControlRechazado(String message) {
+        return "[[PRIVATE_CHAT_STATUS:REJECTED]]".equals(message);
+    }
+
+    private String normalizarEstado(String estado) {
+        return hasText(estado) ? estado.toUpperCase(Locale.ROOT) : "PENDIENTE";
     }
 }
 

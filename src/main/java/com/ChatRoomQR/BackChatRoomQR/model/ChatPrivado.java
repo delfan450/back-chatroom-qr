@@ -44,6 +44,8 @@ public class ChatPrivado {
     @Column(name = "fecha_eliminacion")
     private LocalDateTime fechaEliminacion;
 
+    private String estado = "PENDIENTE";
+
     private String mensaje;
 
     @JsonProperty("fecha_hora")

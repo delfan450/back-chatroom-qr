@@ -45,6 +45,8 @@ public class Usuario {
     @Column(name = "code_expires_at")
     private LocalDateTime codeExpiresAt;
 
+    private String estado = "PENDIENTE";
+
     private LocalDateTime fecha_registro = LocalDateTime.now();
     private Boolean acepta_terminos = true;
 }

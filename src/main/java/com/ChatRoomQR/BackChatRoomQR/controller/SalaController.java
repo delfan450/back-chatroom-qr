@@ -4,6 +4,7 @@ import com.ChatRoomQR.BackChatRoomQR.model.Sala;
 import com.ChatRoomQR.BackChatRoomQR.model.UsuarioSala;
 import com.ChatRoomQR.BackChatRoomQR.repository.SalaRepository;
 import com.ChatRoomQR.BackChatRoomQR.repository.UsuarioSalaRepository;
+import com.ChatRoomQR.BackChatRoomQR.service.PrivateChatCleanupService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ public class SalaController {
 
     @Autowired private SalaRepository salaRepository;
     @Autowired private UsuarioSalaRepository usuarioSalaRepository;
+    @Autowired private PrivateChatCleanupService privateChatCleanupService;
 
     // GET /api/salas/mis-salas?id_usuario=X
     @GetMapping("/mis-salas")
@@ -40,6 +42,9 @@ public class SalaController {
             }
 
             salaRepository.findById(us.getIdSala()).ifPresent(sala -> {
+                if (esSalaFinalizada(sala.getEstado())) {
+                    return;
+                }
                 Map<String, Object> item = new HashMap<>();
                 item.put("id_sala", sala.getId_sala());
                 item.put("nombre", sala.getNombre_sala());
@@ -61,7 +66,12 @@ public class SalaController {
                     }
                     java.time.LocalDateTime expiracion = fechaBase.plusMinutes(sala.getTiempo_maximo());
                     minutosRestantes = java.time.Duration.between(java.time.LocalDateTime.now(), expiracion).toMinutes();
-                    if (minutosRestantes < 0) minutosRestantes = 0;
+                    if (minutosRestantes <= 0) {
+                        us.setEstado("inactivo");
+                        usuarioSalaRepository.save(us);
+                        privateChatCleanupService.cerrarChatsDeSalaParaUsuario(id_usuario, us.getIdSala(), "Tiempo de sala agotado");
+                        return;
+                    }
                 }
                 item.put("minutos_restantes", minutosRestantes);
 
@@ -94,9 +104,19 @@ public class SalaController {
         usuarioSalaRepository.findByIdUsuarioAndIdSala(id_usuario, id_sala).ifPresent(us -> {
             us.setEstado("inactivo");
             usuarioSalaRepository.save(us);
+            privateChatCleanupService.cerrarChatsDeSalaParaUsuario(id_usuario, id_sala, "Usuario salio de la sala");
         });
         Map<String, Object> r = new HashMap<>();
         r.put("status", "success");
         return ResponseEntity.ok(r);
+    }
+
+    private boolean esSalaFinalizada(String estado) {
+        if (estado == null) return false;
+        String normalizado = estado.toLowerCase(Locale.ROOT);
+        return normalizado.equals("finalizada")
+                || normalizado.equals("expirada")
+                || normalizado.equals("cerrada")
+                || normalizado.equals("inactiva");
     }
 }

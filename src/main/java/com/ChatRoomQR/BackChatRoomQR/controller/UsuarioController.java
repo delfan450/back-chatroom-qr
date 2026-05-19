@@ -38,7 +38,14 @@ public class UsuarioController {
     // 1. INICIAR REGISTRO (Step 1: Enviar código de verificación)
     @PostMapping("/iniciar-registro")
     public ResponseEntity<Map<String, Object>> iniciarRegistro(
-            @RequestParam String email) {
+            @RequestParam String email,
+            @RequestParam(required = false) String nombre_usuario,
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String apellidos,
+            @RequestParam(required = false) String fecha_nacimiento,
+            @RequestParam(required = false) String telefono,
+            @RequestParam(required = false) String password,
+            @RequestParam(required = false) String foto) {
 
         Map<String, Object> response = new HashMap<>();
 
@@ -54,6 +61,12 @@ public class UsuarioController {
             return ResponseEntity.badRequest().body(response);
         }
 
+        if (hasText(nombre_usuario) && usuarioRepository.findByNombreUsuario(nombre_usuario).isPresent()) {
+            response.put("status", "error");
+            response.put("message", "El nombre de usuario ya existe");
+            return ResponseEntity.badRequest().body(response);
+        }
+
         try {
             // Generar código de 6 dígitos
             String codigo = String.format("%06d", (int)(Math.random() * 1000000));
@@ -61,7 +74,19 @@ public class UsuarioController {
             // Crear usuario temporal sin verificar
             Usuario nuevo = new Usuario();
             nuevo.setEmail(email);
+            nuevo.setNombreUsuario(nombre_usuario);
+            nuevo.setNombre(nombre);
+            nuevo.setApellidos(apellidos);
+            if (hasText(fecha_nacimiento)) {
+                nuevo.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
+            }
+            nuevo.setTelefono(telefono);
+            if (hasText(password)) {
+                nuevo.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
+            }
+            nuevo.setFoto(foto);
             nuevo.setIsVerified(false);
+            nuevo.setEstado("PENDIENTE");
             nuevo.setVerificationCode(codigo);
             nuevo.setCodeExpiresAt(LocalDateTime.now().plusMinutes(10));
             usuarioRepository.save(nuevo);
@@ -85,12 +110,12 @@ public class UsuarioController {
     public ResponseEntity<Map<String, Object>> verificarCodigo(
             @RequestParam String email,
             @RequestParam String code,
-            @RequestParam String nombre_usuario,
-            @RequestParam String nombre,
-            @RequestParam String apellidos,
-            @RequestParam String fecha_nacimiento,
-            @RequestParam String telefono,
-            @RequestParam String password,
+            @RequestParam(required = false) String nombre_usuario,
+            @RequestParam(required = false) String nombre,
+            @RequestParam(required = false) String apellidos,
+            @RequestParam(required = false) String fecha_nacimiento,
+            @RequestParam(required = false) String telefono,
+            @RequestParam(required = false) String password,
             @RequestParam(required = false) String foto) {
 
         Map<String, Object> response = new HashMap<>();
@@ -103,7 +128,9 @@ public class UsuarioController {
         }
 
         // Verificar que nombre_usuario sea único
-        if (usuarioRepository.findByNombreUsuario(nombre_usuario).isPresent()) {
+        if (hasText(nombre_usuario) && usuarioRepository.findByNombreUsuario(nombre_usuario)
+                .filter(u -> !u.getId_usuario().equals(userOpt.get().getId_usuario()))
+                .isPresent()) {
             response.put("status", "error");
             response.put("message", "El nombre de usuario ya existe");
             return ResponseEntity.badRequest().body(response);
@@ -127,14 +154,15 @@ public class UsuarioController {
 
         try {
             // Completar datos del usuario
-            usuario.setNombreUsuario(nombre_usuario);
-            usuario.setNombre(nombre);
-            usuario.setApellidos(apellidos);
-            usuario.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
-            usuario.setTelefono(telefono);
-            usuario.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
-            usuario.setFoto(foto);
+            if (hasText(nombre_usuario)) usuario.setNombreUsuario(nombre_usuario);
+            if (hasText(nombre)) usuario.setNombre(nombre);
+            if (hasText(apellidos)) usuario.setApellidos(apellidos);
+            if (hasText(fecha_nacimiento)) usuario.setFechaNacimiento(java.time.LocalDate.parse(fecha_nacimiento));
+            if (hasText(telefono)) usuario.setTelefono(telefono);
+            if (hasText(password)) usuario.setPassword(BCrypt.hashpw(password, BCrypt.gensalt()));
+            if (foto != null) usuario.setFoto(foto);
             usuario.setIsVerified(true);
+            usuario.setEstado("ACTIVO");
             usuario.setVerificationCode(null);
             usuario.setCodeExpiresAt(null);
 
@@ -192,6 +220,7 @@ public class UsuarioController {
                 response.put("id_usuario", user.getId_usuario());
                 response.put("nombre", user.getNombre());
                 response.put("rol", rolNombre);
+                response.put("email_verificado", true);
                 return ResponseEntity.ok(response);
             } else {
                 response.put("status", "error");
@@ -311,9 +340,20 @@ public class UsuarioController {
     // 7. CAMBIAR ROL
     @PostMapping("/cambiar-rol")
     public ResponseEntity<Map<String, Object>> cambiarRol(
+            @RequestParam int id_usuario_admin,
             @RequestParam int id_usuario,
             @RequestParam String nuevo_rol) {
         Map<String, Object> r = new HashMap<>();
+
+        boolean tienePermiso = rolUsuarioRepository.findByIdUsuario(id_usuario_admin)
+                .map(ru -> ru.getIdRol() == 1 || ru.getIdRol() == 2)
+                .orElse(false);
+        if (!tienePermiso) {
+            r.put("status", "error");
+            r.put("message", "Forbidden");
+            return ResponseEntity.status(403).body(r);
+        }
+
         Map<String, Integer> mapa = Map.of("owner", 1, "admin", 2, "usuario", 3);
         int idRol = mapa.getOrDefault(nuevo_rol.toLowerCase(), 3);
         rolUsuarioRepository.findByIdUsuario(id_usuario).ifPresent(ru -> {
@@ -378,6 +418,7 @@ public class UsuarioController {
                 Usuario usuario = usuarioOpt.get();
                 usuario.setGoogleId(googleId);
                 usuario.setIsVerified(true);
+                usuario.setEstado("ACTIVO");
                 if (nombre != null) usuario.setNombre(nombre);
                 if (apellidos != null) usuario.setApellidos(apellidos);
                 if (telefono != null) usuario.setTelefono(telefono);
@@ -395,12 +436,14 @@ public class UsuarioController {
                 response.put("id_usuario", usuario.getId_usuario());
                 response.put("nombre", usuario.getNombre());
                 response.put("rol", rolNombre);
+                response.put("necesita_completar_perfil", necesitaCompletarPerfil(usuario));
             } else {
                 // Crear nuevo usuario
                 Usuario nuevoUsuario = new Usuario();
                 nuevoUsuario.setEmail(email);
                 nuevoUsuario.setGoogleId(googleId);
                 nuevoUsuario.setIsVerified(true);
+                nuevoUsuario.setEstado("ACTIVO");
                 nuevoUsuario.setNombre(nombre != null ? nombre : tokenInfo.getOrDefault("nombre", "Usuario"));
                 nuevoUsuario.setApellidos(apellidos != null ? apellidos : tokenInfo.getOrDefault("apellidos", ""));
                 nuevoUsuario.setTelefono(telefono != null ? telefono : "");
@@ -420,6 +463,7 @@ public class UsuarioController {
                 response.put("id_usuario", saved.getId_usuario());
                 response.put("nombre", saved.getNombre());
                 response.put("rol", "usuario");
+                response.put("necesita_completar_perfil", necesitaCompletarPerfil(saved));
             }
 
             return ResponseEntity.ok(response);
@@ -470,5 +514,18 @@ public class UsuarioController {
             response.put("message", "Error en el servidor: " + e.getMessage());
             return ResponseEntity.internalServerError().body(response);
         }
+    }
+
+    private boolean necesitaCompletarPerfil(Usuario usuario) {
+        return usuario == null
+                || !hasText(usuario.getNombre())
+                || !hasText(usuario.getApellidos())
+                || !hasText(usuario.getNombreUsuario())
+                || !hasText(usuario.getTelefono())
+                || usuario.getFechaNacimiento() == null;
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 }
