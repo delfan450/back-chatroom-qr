@@ -35,7 +35,7 @@ public class UsuarioController {
     @Autowired
     private GoogleOAuthService googleOAuthService;
 
-    // 1. INICIAR REGISTRO (Step 1: Enviar código de verificación)
+    // INICIAR REGISTRO
     @PostMapping("/iniciar-registro")
     public ResponseEntity<Map<String, Object>> iniciarRegistro(
             @RequestParam String email,
@@ -68,7 +68,7 @@ public class UsuarioController {
         }
 
         try {
-            // Generar código de 6 dígitos
+            // Generar el código de 6 dígitos
             String codigo = String.format("%06d", (int)(Math.random() * 1000000));
 
             // Crear usuario temporal sin verificar
@@ -105,7 +105,7 @@ public class UsuarioController {
         }
     }
 
-    // 2. VERIFICAR CÓDIGO Y COMPLETAR REGISTRO (Step 2: Completar datos después de verificar código)
+    // VERIFICAR CÓDIGO Y COMPLETAR REGISTRO
     @PostMapping("/verificar-codigo")
     public ResponseEntity<Map<String, Object>> verificarCodigo(
             @RequestParam String email,
@@ -118,9 +118,9 @@ public class UsuarioController {
             @RequestParam(required = false) String password,
             @RequestParam(required = false) String foto) {
 
-        Map<String, Object> response = new HashMap<>();
+           Map<String, Object> response = new HashMap<>();
 
-        Optional<Usuario> userOpt = usuarioRepository.findByEmail(email);
+           Optional<Usuario> userOpt = usuarioRepository.findByEmail(email);
         if (userOpt.isEmpty()) {
             response.put("status", "error");
             response.put("message", "Email no encontrado");
@@ -138,14 +138,14 @@ public class UsuarioController {
 
         Usuario usuario = userOpt.get();
 
-        // Verificar código
+        // Verificar el código
         if (usuario.getVerificationCode() == null || !usuario.getVerificationCode().equals(code)) {
             response.put("status", "error");
             response.put("message", "Código de verificación inválido");
             return ResponseEntity.badRequest().body(response);
         }
 
-        // Verificar si el código ha expirado
+        // Verificar si el código ha sido expirado
         if (usuario.getCodeExpiresAt() != null && LocalDateTime.now().isAfter(usuario.getCodeExpiresAt())) {
             response.put("status", "error");
             response.put("message", "El código de verificación ha expirado");
@@ -168,7 +168,7 @@ public class UsuarioController {
 
             Usuario saved = usuarioRepository.save(usuario);
 
-            // Asignar rol Usuario (id_rol=3) si no existe
+            // Asignar rol Usuario si no existe
             if (rolUsuarioRepository.findByIdUsuario(saved.getId_usuario()).isEmpty()) {
                 RolUsuario rolUsuario = new RolUsuario();
                 rolUsuario.setIdUsuario(saved.getId_usuario());
@@ -187,21 +187,20 @@ public class UsuarioController {
         }
     }
 
-    // 2. LOGIN DE USUARIO
+    // LOGIN DE USUARIO
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(
             @RequestParam String email,
             @RequestParam String password) {
 
         Map<String, Object> response = new HashMap<>();
-       // Optional<Usuario> userOpt = usuarioRepository.findByEmail(email);
         Optional<Usuario> userOpt = usuarioRepository.findByEmailOrNombreUsuario(email, email);
 
 
         if (userOpt.isPresent()) {
             Usuario user = userOpt.get();
 
-            // Verificar que el usuario está verificado
+            // Verificar que el usuario este verificado
             if (!Boolean.TRUE.equals(user.getIsVerified())) {
                 response.put("status", "error");
                 response.put("message", "El email aún no ha sido verificado. Por favor, revisa tu bandeja de entrada.");
@@ -209,7 +208,7 @@ public class UsuarioController {
             }
 
             if (BCrypt.checkpw(password, user.getPassword())) {
-                // Obtener rol de forma segura — nunca falla el login si el rol da error
+                // Obtener rol de forma segura y nunca falla el login si el rol da error
                 String rolNombre = "usuario";
                 try {
                     rolNombre = rolUsuarioRepository.findRolNameByIdUsuario(user.getId_usuario())
@@ -234,7 +233,7 @@ public class UsuarioController {
         }
     }
 
-    // 3. OBTENER DATOS
+    // OBTENER DATOS
     @GetMapping("/{id_usuario}")
     public ResponseEntity<Usuario> getUsuario(@PathVariable("id_usuario") int id_usuario) {
         return usuarioRepository.findById(id_usuario)
@@ -242,7 +241,7 @@ public class UsuarioController {
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    // 4. ACTUALIZAR PERFIL
+    // ACTUALIZAR PERFIL
     @PostMapping("/actualizar/{id}")
     public ResponseEntity<Map<String, Object>> actualizar(
             @PathVariable Integer id,
@@ -276,7 +275,7 @@ public class UsuarioController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // 4. CHECK EMAIL
+    // CHECK EMAIL
     @GetMapping("/check-email")
     public ResponseEntity<Map<String, Object>> checkEmail(@RequestParam String email) {
         Map<String, Object> r = new HashMap<>();
@@ -308,7 +307,7 @@ public class UsuarioController {
         return ResponseEntity.ok(r);
     }
 
-    // 6. BUSCAR POR EMAIL
+    // BUSCAR POR EMAIL
     @GetMapping("/buscar")
     public ResponseEntity<List<Map<String, Object>>> buscarUsuarios(@RequestParam String query) {
         // Buscamos en email, nombre y nombre_usuario usando el mismo texto
@@ -337,7 +336,7 @@ public class UsuarioController {
         return ResponseEntity.ok(respuesta);
     }
 
-    // 7. CAMBIAR ROL
+    // CAMBIAR ROL
     @PostMapping("/cambiar-rol")
     public ResponseEntity<Map<String, Object>> cambiarRol(
             @RequestParam int id_usuario_admin,
@@ -364,7 +363,7 @@ public class UsuarioController {
         return ResponseEntity.ok(r);
     }
 
-    // 8. OBTENER ROL
+    //  OBTENER ROL
     @GetMapping("/{id_usuario}/rol")
     public ResponseEntity<Map<String, Object>> getRol(@PathVariable int id_usuario) {
         Map<String, Object> r = new HashMap<>();
@@ -377,7 +376,7 @@ public class UsuarioController {
     }
 
 
-    // 10. VERIFICAR GOOGLE OAUTH
+    // VERIFICAR GOOGLE OAUTH
     @PostMapping("/login-google")
     public ResponseEntity<Map<String, Object>> loginGoogle(
             @RequestParam String id_token,
@@ -387,7 +386,7 @@ public class UsuarioController {
             @RequestParam(required = false) String foto) {
         return verificarGoogle(id_token, nombre, apellidos, telefono, foto);
     }
-
+     //POST
     @PostMapping("/verificar-google")
     public ResponseEntity<Map<String, Object>> verificarGoogle(
             @RequestParam String id_token,
@@ -399,7 +398,7 @@ public class UsuarioController {
         Map<String, Object> response = new HashMap<>();
 
         try {
-            // Validar token de Google
+            // Validar el token de Google
             Map<String, String> tokenInfo = googleOAuthService.validateTokenAndGetInfo(id_token);
             if (tokenInfo == null) {
                 response.put("status", "error");
@@ -410,7 +409,7 @@ public class UsuarioController {
             String email = tokenInfo.get("email");
             String googleId = tokenInfo.get("google_id");
 
-            // Buscar usuario existente
+            // Buscar si el usuario es existente
             Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(email);
 
             if (usuarioOpt.isPresent()) {
@@ -452,7 +451,7 @@ public class UsuarioController {
 
                 Usuario saved = usuarioRepository.save(nuevoUsuario);
 
-                // Asignar rol Usuario (id_rol=3) por defecto
+                // Asignar rol Usuario por defecto
                 RolUsuario rolUsuario = new RolUsuario();
                 rolUsuario.setIdUsuario(saved.getId_usuario());
                 rolUsuario.setIdRol(3);
@@ -475,7 +474,7 @@ public class UsuarioController {
         }
     }
 
-    // 9. REENVIAR VERIFICACIÓN - Genera un código en la tabla usuarios y lo envía por email
+    // POST: REENVIAR VERIFICACIÓN --- Genera un código en la tabla usuarios y lo envía por email
     @PostMapping("/reenviar-verificacion")
     public ResponseEntity<Map<String, Object>> reenviarVerificacion(
             @RequestParam String email) {
@@ -497,7 +496,7 @@ public class UsuarioController {
                 return ResponseEntity.ok(response);
             }
 
-            // Generar código de 6 dígitos y guardarlo en la tabla usuarios
+            // Generar código de 6 dígitos para guardarlo en la tabla usuarios
             String codigo = String.format("%06d", (int)(Math.random() * 1000000));
             usuario.setVerificationCode(codigo);
             usuario.setCodeExpiresAt(LocalDateTime.now().plusMinutes(10));

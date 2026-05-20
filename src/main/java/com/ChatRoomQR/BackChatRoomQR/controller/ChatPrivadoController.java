@@ -30,8 +30,8 @@ public class ChatPrivadoController {
     @Autowired
     private PrivateChatCleanupService privateChatCleanupService;
 
-    // POST /api/chat/privado/crear?id_usuario_1=X&id_usuario_2=Y&id_sala_origen=GENERAL
-    // Devuelve ID deterministico de conversacion; los datos reales viven en los mensajes.
+    // POST
+    // Devuelve ID deterministico de la conversacion, los datos reales viven en los mensajes.
     @PostMapping("/crear")
     public ResponseEntity<Map<String, Object>> crearChat(
             @RequestParam int id_usuario_1,
@@ -60,7 +60,7 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
-    // GET /api/chat/privado/info?id_usuario_1=X&id_usuario_2=Y
+    // GET
     @GetMapping("/info")
     public ResponseEntity<Map<String, Object>> getInfoChat(
             @RequestParam int id_usuario_1,
@@ -92,7 +92,7 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
-    // GET /api/chat/privado/mensajes?id_usuario_1=X&id_usuario_2=Y
+    // GET
     @GetMapping("/mensajes")
     public ResponseEntity<?> getMensajes(
             @RequestParam int id_usuario_1,
@@ -117,7 +117,7 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(mensajes);
     }
 
-    // POST /api/chat/privado/enviar?id_usuario_1=X&id_usuario_2=Y&id_usuario_emisor=Z&mensaje=W&id_sala_origen=GENERAL
+    // POST
     @PostMapping("/enviar")
     public ResponseEntity<Map<String, Object>> enviarMensaje(
             @RequestParam int id_usuario_1,
@@ -176,7 +176,7 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
-    // POST /api/chat/privado/eliminar?id_usuario_1=X&id_usuario_2=Y&id_sala_origen=GENERAL&motivo=...
+    // POST
     @PostMapping("/eliminar")
     public ResponseEntity<Map<String, Object>> eliminarChat(
             @RequestParam int id_usuario_1,
@@ -202,7 +202,7 @@ public class ChatPrivadoController {
     }
 
 
-    // POST /api/chat/privado/eliminar-por-sala?id_usuario=X&id_sala_origen=GENERAL&motivo=...
+    // POST
     @PostMapping("/eliminar-por-sala")
     public ResponseEntity<Map<String, Object>> eliminarChatsPorSala(
             @RequestParam int id_usuario,
@@ -229,7 +229,7 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
-    // GET /api/chat/privado/resumen-notificaciones?id_usuario=X
+    // GET
     @GetMapping("/resumen-notificaciones")
     public ResponseEntity<List<Map<String, Object>>> getResumenNotificaciones(@RequestParam int id_usuario) {
         List<ChatPrivado> noLeidos = chatPrivadoRepository.findResumenNoLeidos(id_usuario);
@@ -252,7 +252,7 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(response);
     }
 
-    // GET /api/chat/privado/no-leidos?id_usuario=X
+    // GET
     @GetMapping("/no-leidos")
     public ResponseEntity<?> getNoLeidos(@RequestParam int id_usuario) {
         List<ChatPrivado> noLeidos = chatPrivadoRepository.findNoLeidos(id_usuario);
@@ -267,7 +267,7 @@ public class ChatPrivadoController {
         return ResponseEntity.ok(noLeidos);
     }
 
-    // PUT /api/chat/privado/marcar-leido/{id}
+    // PUT
     @PutMapping("/marcar-leido/{id}")
     public ResponseEntity<Map<String, Object>> marcarLeido(@PathVariable int id) {
         Map<String, Object> response = new HashMap<>();
@@ -284,7 +284,7 @@ public class ChatPrivadoController {
         });
     }
 
-    // PUT /api/chat/privado/marcar-todos-leidos?id_usuario_1=X&id_usuario_2=Y&id_usuario_lector=Z
+    // PUT
     @PutMapping("/marcar-todos-leidos")
     public ResponseEntity<Map<String, Object>> marcarTodosLeidos(
             @RequestParam int id_usuario_1,

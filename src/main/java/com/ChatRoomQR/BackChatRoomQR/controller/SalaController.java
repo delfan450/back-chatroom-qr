@@ -20,7 +20,7 @@ public class SalaController {
     @Autowired private UsuarioSalaRepository usuarioSalaRepository;
     @Autowired private PrivateChatCleanupService privateChatCleanupService;
 
-    // GET /api/salas/mis-salas?id_usuario=X
+    // GET
     @GetMapping("/mis-salas")
     public ResponseEntity<List<Map<String, Object>>> getMisSalas(@RequestParam int id_usuario) {
         List<UsuarioSala> uniones = usuarioSalaRepository.findByIdUsuario(id_usuario);
@@ -29,7 +29,7 @@ public class SalaController {
         for (UsuarioSala us : uniones) {
             if ("inactivo".equals(us.getEstado())) continue;
 
-            // Excluir si sigue baneado
+            // Excluir si el usuario sigue baneado
             if ("expulsado".equals(us.getEstado())) {
                 boolean baneoActivo = true;
                 if (us.getDuracionExpulsion() != null && us.getDuracionExpulsion() > 0 && us.getFechaExpulsion() != null) {
@@ -37,7 +37,7 @@ public class SalaController {
                     baneoActivo = !java.time.LocalDateTime.now().isAfter(finBan);
                 }
                 if (baneoActivo) continue;
-                // Baneo expirado — no mostrar en lista hasta que reentren
+                // Baneo expirado, no mostrar en lista hasta que reentren
                 continue;
             }
 
@@ -54,7 +54,7 @@ public class SalaController {
                 item.put("tiempo_maximo", sala.getTiempo_maximo() != null ? sala.getTiempo_maximo() : 120);
                 item.put("estado", us.getEstado());
 
-                // Calcular minutos restantes
+                // Calcular los minutos restantes
                 long minutosRestantes = -1;
                 if (sala.getTiempo_maximo() != null && sala.getTiempo_maximo() > 0) {
                     java.time.LocalDateTime fechaBase = us.getFechaUnion() != null
@@ -81,7 +81,7 @@ public class SalaController {
         return ResponseEntity.ok(resultado);
     }
 
-    // GET /api/salas/{id_sala}
+    // GET
     @GetMapping("/{id_sala}")
     public ResponseEntity<Map<String, Object>> getSalaInfo(@PathVariable String id_sala) {
         return salaRepository.findById(id_sala).map(sala -> {
@@ -96,7 +96,7 @@ public class SalaController {
         }).orElse(ResponseEntity.notFound().build());
     }
 
-    // POST /api/salas/salir
+    // POST
     @PostMapping("/salir")
     public ResponseEntity<Map<String, Object>> salirDeSala(
             @RequestParam int id_usuario,
@@ -110,7 +110,7 @@ public class SalaController {
         r.put("status", "success");
         return ResponseEntity.ok(r);
     }
-
+    //Comprobar si la sala ha sido finalizada
     private boolean esSalaFinalizada(String estado) {
         if (estado == null) return false;
         String normalizado = estado.toLowerCase(Locale.ROOT);

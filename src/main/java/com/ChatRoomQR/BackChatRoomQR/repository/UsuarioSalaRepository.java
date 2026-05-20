@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Optional;
 
 public interface UsuarioSalaRepository extends JpaRepository<UsuarioSala, Integer> {
+
     List<UsuarioSala> findByIdUsuario(Integer idUsuario);
+
     Optional<UsuarioSala> findByIdUsuarioAndIdSala(Integer idUsuario, String idSala);
 }

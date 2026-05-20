@@ -20,7 +20,7 @@ public class DenunciaController {
 
     @Autowired
     private UsuarioRepository usuarioRepository;
-
+    //PUT para crear la denuncia
     @PostMapping("/crear")
     public ResponseEntity<Map<String, Object>> crearDenuncia(
             @RequestParam int id_usuario_denunciante,

@@ -10,10 +10,8 @@ import lombok.Data;
 public class Sala {
     @Id
     private String id_sala;
-
     @JsonProperty("nombre")
     private String nombre_sala;
-
     private String descripcion;
     private Double latitud;
     private Double longitud;

@@ -13,6 +13,8 @@ import java.util.List;
 @Repository
 public interface ChatPrivadoRepository extends JpaRepository<ChatPrivado, Integer> {
 
+    //Querys para Chats Privados
+
     @Query("SELECT c FROM ChatPrivado c WHERE " +
            "((c.idEmisor = :u1 AND c.idReceptor = :u2) OR " +
            "(c.idEmisor = :u2 AND c.idReceptor = :u1)) " +
@@ -59,4 +61,5 @@ public interface ChatPrivadoRepository extends JpaRepository<ChatPrivado, Intege
            ORDER BY c.fechaHora DESC
            """)
     List<ChatPrivado> findResumenNoLeidos(@Param("idUsuario") int idUsuario);
+
 }

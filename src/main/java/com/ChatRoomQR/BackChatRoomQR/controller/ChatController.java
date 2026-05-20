@@ -27,7 +27,7 @@ public class ChatController {
     @Autowired private RolUsuarioRepository rolUsuarioRepository;
     @Autowired private PrivateChatCleanupService privateChatCleanupService;
 
-    // --- 1. INFO DE LA SALA ---
+    // --- INFO DE LA SALA ---
     @GetMapping("/sala/{id_sala}")
     public ResponseEntity<Map<String, Object>> obtenerInfoSala(@PathVariable String id_sala) {
         Map<String, Object> response = new HashMap<>();
@@ -43,7 +43,7 @@ public class ChatController {
         });
     }
 
-    // --- 2. OBTENER MENSAJES ---
+    // --- OBTENER MENSAJES ---
     @GetMapping("/mensajes/{id_sala}")
     public ResponseEntity<?> getMensajesGrupal(
             @PathVariable String id_sala,
@@ -68,7 +68,7 @@ public class ChatController {
         return ResponseEntity.ok(mensajes);
     }
 
-    // --- 3. ENVIAR MENSAJE ---
+    // --- ENVIAR MENSAJE ---
     @PostMapping("/enviar")
     public ResponseEntity<Map<String, Object>> enviarMensajeGrupal(
             @RequestParam String id_sala,
@@ -109,7 +109,7 @@ public class ChatController {
         }
     }
 
-    // --- 4. VERIFICAR SESIÓN ---
+    // ---  VERIFICAR SESIÓN ---
     @GetMapping("/verificar-sesion")
     public ResponseEntity<Map<String, Object>> verificarSesionSala(
             @RequestParam int id_usuario,
@@ -137,13 +137,13 @@ public class ChatController {
 
         UsuarioSala us = usOpt.get();
 
-        // Expulsado por admin
+        // Expulsado por el admin
         if ("expulsado".equals(us.getEstado())) {
             // Comprobar si el baneo temporal ha expirado
             if (us.getDuracionExpulsion() != null && us.getDuracionExpulsion() > 0 && us.getFechaExpulsion() != null) {
                 LocalDateTime finBan = us.getFechaExpulsion().plusMinutes(us.getDuracionExpulsion());
                 if (LocalDateTime.now().isAfter(finBan)) {
-                    // El baneo ha expirado — dejar que pueda reentrar
+                    // El baneo ha expirado y  dejar que pueda reentrar
                     us.setEstado("inactivo");
                     usuarioSalaRepository.save(us);
                     // Continúa al bloque de éxito
@@ -164,7 +164,7 @@ public class ChatController {
             }
         }
 
-        // Salió voluntariamente o fue marcado inactivo
+        // Comprobar si salio voluntariamente o fue marcado como inactivo
         if ("inactivo".equals(us.getEstado())) {
             response.put("status", "error");
             response.put("expirado", true);
@@ -202,7 +202,7 @@ public class ChatController {
         return ResponseEntity.ok(response);
     }
 
-    // --- 5. UNIRSE A SALA ---
+    // --- UNIRSE A SALA ---
     @PostMapping("/unirse")
     public ResponseEntity<Map<String, Object>> unirseASala(
             @RequestParam int id_usuario,
@@ -256,7 +256,7 @@ public class ChatController {
         return ResponseEntity.ok(response);
     }
 
-    // --- 6. EXPULSAR DE SALA --
+    // --- EXPULSAR DE SALA --
     @PostMapping("/expulsar")
     public ResponseEntity<Map<String, Object>> expulsarDeChat(
             @RequestParam int id_usuario_admin,
@@ -267,7 +267,7 @@ public class ChatController {
 
         Map<String, Object> response = new HashMap<>();
 
-        // Verificar que quien expulsa es admin
+        // Verificar que quien expulsa es el admin
         boolean tienePermiso = rolUsuarioRepository.findByIdUsuario(id_usuario_admin)
                 .map(r -> r.getIdRol() == 1 || r.getIdRol() == 2)
                 .orElse(false);

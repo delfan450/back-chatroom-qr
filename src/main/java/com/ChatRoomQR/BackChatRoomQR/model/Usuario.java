@@ -13,40 +13,27 @@ public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id_usuario;
-
     @Column(name = "nombre_usuario", unique = true)
     private String nombreUsuario;
-
     private String nombre;
     private String apellidos;
-
     @Column(name = "fecha_nacimiento")
     private java.time.LocalDate fechaNacimiento;
-
     private String telefono;
-
     @Column(columnDefinition = "TEXT")
     private String foto;
-
     @Column(unique = true)
     private String email;
-
     private String password;
-
     @Column(name = "verification_code")
     private String verificationCode;
-
     @Column(name = "is_verified")
     private Boolean isVerified = false;
-
     @Column(name = "google_id")
     private String googleId;
-
     @Column(name = "code_expires_at")
     private LocalDateTime codeExpiresAt;
-
     private String estado = "PENDIENTE";
-
     private LocalDateTime fecha_registro = LocalDateTime.now();
     private Boolean acepta_terminos = true;
 }
