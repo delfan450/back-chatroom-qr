@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(find /c/Users/Usuario/AndroidStudioProjects/back-chatroom-qr -name *.java -path */service/*)",
-      "Bash(./mvnw clean:*)"
-    ]
-  }
-}
